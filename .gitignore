@@ -6,6 +6,8 @@ proxy-centauri
 # Config (may contain secrets)
 centauri.yml
 centauri.local.yml
+.env
+.env.*
 
 # Build artifacts
 /dist/
