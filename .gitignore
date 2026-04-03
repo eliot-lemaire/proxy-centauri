@@ -24,3 +24,6 @@ vendor/
 # OS
 .DS_Store
 Thumbs.db
+
+# Docs (local only — plan and progress files)
+docs/
