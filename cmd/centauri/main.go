@@ -13,6 +13,7 @@ import (
 	"github.com/eliot-lemaire/proxy-centauri/internal/config"
 	"github.com/eliot-lemaire/proxy-centauri/internal/health"
 	"github.com/eliot-lemaire/proxy-centauri/internal/proxy"
+	"github.com/eliot-lemaire/proxy-centauri/internal/tunnel"
 )
 
 const logo = `
@@ -68,6 +69,12 @@ func main() {
 				}
 			}(gate.Listen)
 			fmt.Printf("  [ Orbital Router  ] listening on %s — ready to route\n", gate.Listen)
+		}
+
+		if gate.Protocol == "tcp" {
+			t := tunnel.New(lb)
+			go t.Listen(gate.Listen)
+			fmt.Printf("  [ Orbital Router  ] listening on %s — ready to tunnel\n", gate.Listen)
 		}
 	}
 
