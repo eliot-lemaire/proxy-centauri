@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -31,13 +30,10 @@ const logo = `
 `
 
 func main() {
-	configPath := flag.String("config", "centauri.yml", "path to centauri.yml")
-	flag.Parse()
-
 	fmt.Println(logo)
 	fmt.Println("  [ Mission Control ] Initializing...")
 
-	cfg, err := config.Load(*configPath)
+	cfg, err := config.Load("centauri.yml")
 	if err != nil {
 		log.Fatalf("  [ Mission Control ] Failed to load centauri.yml: %v", err)
 	}
@@ -50,7 +46,7 @@ func main() {
 		}
 	}
 
-	if err := config.Watch(*configPath, func(newCfg *config.Config) {
+	if err := config.Watch("centauri.yml", func(newCfg *config.Config) {
 		fmt.Printf("  [ Config          ] Reloaded — %d jump gate(s)\n", len(newCfg.JumpGates))
 	}); err != nil {
 		log.Fatalf("  [ Mission Control ] Failed to start config watcher: %v", err)
