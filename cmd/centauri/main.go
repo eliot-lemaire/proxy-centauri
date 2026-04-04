@@ -57,7 +57,7 @@ func main() {
 
 		lb := balancer.New(addrs)
 
-		ps := health.New(addrs, lb, 5*time.Second)
+		ps := health.New(addrs, gate.Protocol, lb, 5*time.Second)
 		ps.Start()
 		fmt.Printf("  [ Pulse Scan      ] health checks every 5s\n")
 

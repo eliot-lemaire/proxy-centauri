@@ -2,6 +2,7 @@ package health
 
 import (
 	"log"
+	"net"
 	"net/http"
 	"sync"
 	"time"
@@ -13,17 +14,19 @@ import (
 // the balancer to only include healthy Star Systems.
 type PulseScan struct {
 	all      []string
+	protocol string // "http" or "tcp"
 	healthy  sync.Map
 	balancer *balancer.RoundRobin
 	interval time.Duration
 	client   *http.Client
 }
 
-// New creates a PulseScan for the given addresses and balancer.
+// New creates a PulseScan for the given addresses, protocol, and balancer.
 // All backends are assumed healthy until proven otherwise.
-func New(addresses []string, lb *balancer.RoundRobin, interval time.Duration) *PulseScan {
+func New(addresses []string, protocol string, lb *balancer.RoundRobin, interval time.Duration) *PulseScan {
 	ps := &PulseScan{
 		all:      addresses,
+		protocol: protocol,
 		balancer: lb,
 		interval: interval,
 		client:   &http.Client{Timeout: 2 * time.Second},
@@ -87,12 +90,30 @@ func (ps *PulseScan) check() {
 	}
 }
 
-// ping attempts an HTTP GET to the address and returns true if it responds.
+// ping checks if the backend is alive using the appropriate method for the protocol.
 func (ps *PulseScan) ping(address string) bool {
+	if ps.protocol == "tcp" {
+		return ps.pingTCP(address)
+	}
+	return ps.pingHTTP(address)
+}
+
+// pingHTTP attempts an HTTP GET and returns true if the backend responds.
+func (ps *PulseScan) pingHTTP(address string) bool {
 	resp, err := ps.client.Get("http://" + address + "/")
 	if err != nil {
 		return false
 	}
 	resp.Body.Close()
 	return resp.StatusCode < 500
+}
+
+// pingTCP attempts a raw TCP dial and returns true if the connection succeeds.
+func (ps *PulseScan) pingTCP(address string) bool {
+	conn, err := net.DialTimeout("tcp", address, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
