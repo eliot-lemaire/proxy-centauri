@@ -6,9 +6,11 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/eliot-lemaire/proxy-centauri/internal/balancer"
 	"github.com/eliot-lemaire/proxy-centauri/internal/config"
+	"github.com/eliot-lemaire/proxy-centauri/internal/health"
 )
 
 const logo = `
@@ -50,10 +52,11 @@ func main() {
 		}
 
 		lb := balancer.New(addrs)
-		fmt.Printf("  [ Orbital Router  ] %d star system(s) — round-robin demo:\n", lb.Len())
-		for i := 0; i < lb.Len()*2; i++ {
-			fmt.Printf("  [ Orbital Router  ]     request %d → %s\n", i+1, lb.Next())
-		}
+		fmt.Printf("  [ Orbital Router  ] %d star system(s) registered\n", lb.Len())
+
+		ps := health.New(addrs, lb, 5*time.Second)
+		ps.Start()
+		fmt.Printf("  [ Pulse Scan      ] health checks every 5s\n")
 	}
 
 	if err := config.Watch("centauri.yml", func(newCfg *config.Config) {
