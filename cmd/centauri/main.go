@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	"github.com/eliot-lemaire/proxy-centauri/internal/balancer"
 	"github.com/eliot-lemaire/proxy-centauri/internal/config"
 	"github.com/eliot-lemaire/proxy-centauri/internal/health"
+	"github.com/eliot-lemaire/proxy-centauri/internal/proxy"
 )
 
 const logo = `
@@ -42,6 +44,7 @@ func main() {
 	}
 
 	fmt.Printf("  [ Mission Control ] %d jump gate(s) configured\n", len(cfg.JumpGates))
+
 	for _, gate := range cfg.JumpGates {
 		fmt.Printf("  [ Jump Gate       ] %q  →  %s  (%s)\n", gate.Name, gate.Listen, gate.Protocol)
 
@@ -52,11 +55,20 @@ func main() {
 		}
 
 		lb := balancer.New(addrs)
-		fmt.Printf("  [ Orbital Router  ] %d star system(s) registered\n", lb.Len())
 
 		ps := health.New(addrs, lb, 5*time.Second)
 		ps.Start()
 		fmt.Printf("  [ Pulse Scan      ] health checks every 5s\n")
+
+		if gate.Protocol == "http" {
+			p := proxy.New(lb)
+			go func(listen string) {
+				if err := http.ListenAndServe(listen, p); err != nil {
+					log.Printf("  [ Jump Gate ] listener on %s failed: %v", listen, err)
+				}
+			}(gate.Listen)
+			fmt.Printf("  [ Orbital Router  ] listening on %s — ready to route\n", gate.Listen)
+		}
 	}
 
 	if err := config.Watch("centauri.yml", func(newCfg *config.Config) {
