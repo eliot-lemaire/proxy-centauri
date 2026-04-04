@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/eliot-lemaire/proxy-centauri/internal/balancer"
 	"github.com/eliot-lemaire/proxy-centauri/internal/config"
 )
 
@@ -41,8 +42,17 @@ func main() {
 	fmt.Printf("  [ Mission Control ] %d jump gate(s) configured\n", len(cfg.JumpGates))
 	for _, gate := range cfg.JumpGates {
 		fmt.Printf("  [ Jump Gate       ] %q  →  %s  (%s)\n", gate.Name, gate.Listen, gate.Protocol)
-		for _, ss := range gate.StarSystems {
+
+		addrs := make([]string, len(gate.StarSystems))
+		for i, ss := range gate.StarSystems {
+			addrs[i] = ss.Address
 			fmt.Printf("  [ Star System     ]     %s\n", ss.Address)
+		}
+
+		lb := balancer.New(addrs)
+		fmt.Printf("  [ Orbital Router  ] %d star system(s) — round-robin demo:\n", lb.Len())
+		for i := 0; i < lb.Len()*2; i++ {
+			fmt.Printf("  [ Orbital Router  ]     request %d → %s\n", i+1, lb.Next())
 		}
 	}
 
