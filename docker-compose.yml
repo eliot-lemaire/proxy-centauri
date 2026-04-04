@@ -1,0 +1,26 @@
+services:
+
+  centauri:
+    build: .
+    ports:
+      - "8000:8000"   # HTTP Jump Gate
+      - "9000:9000"   # TCP Jump Gate
+    volumes:
+      - ./centauri.yml:/app/centauri.yml
+    depends_on:
+      - echo-http
+      - echo-tcp
+    restart: unless-stopped
+
+  # Simple HTTP echo server — responds to any request with request details.
+  # Reachable inside Docker as echo-http:3000
+  echo-http:
+    image: ealen/echo-server
+    environment:
+      - PORT=3000
+
+  # TCP echo service — sends back whatever bytes it receives.
+  # Reachable inside Docker as echo-tcp:3003
+  echo-tcp:
+    image: alpine/socat
+    command: TCP-LISTEN:3003,fork,reuseaddr EXEC:cat

@@ -1,0 +1,20 @@
+mission_control:
+  port: 8080
+  secret: "change-me"
+
+jump_gates:
+
+  # HTTP reverse proxy — forwards web traffic to one or more backends
+  - name: "web-app"
+    listen: ":8000"
+    protocol: http
+    star_systems:
+      - address: "echo-http:3000"   # Docker service name
+        weight: 1
+
+  # TCP tunnel — forwards raw TCP connections (databases, game servers, etc.)
+  - name: "tcp-app"
+    listen: ":9000"
+    protocol: tcp
+    star_systems:
+      - address: "echo-tcp:3003"    # Docker service name
