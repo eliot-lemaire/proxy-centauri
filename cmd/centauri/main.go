@@ -36,7 +36,7 @@ const logo = `
 `
 
 func main() {
-	fmt.Println(logo)
+	fmt.Print(logo)
 	fmt.Println("  [ Mission Control ] Initializing...")
 
 	cfg, err := config.Load("centauri.yml")
