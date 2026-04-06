@@ -29,6 +29,7 @@
 [![Docker Ready](https://img.shields.io/badge/docker-ready-2496ED?logo=docker&logoColor=white&style=flat-square)](https://www.docker.com/)
 
 ---
+[![Launch Countdown](https://img.shields.io/badge/Proxy%20Centauri-Launch%20Countdown-0A0A0A?style=for-the-badge&logo=rocket&logoColor=white)](https://proxycentauri.com)
 
 ## About
 
