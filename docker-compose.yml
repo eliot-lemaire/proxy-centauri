@@ -8,8 +8,10 @@ services:
     volumes:
       - ./centauri.yml:/app/centauri.yml
     depends_on:
-      - echo-http
-      - echo-tcp
+      echo-http:
+        condition: service_healthy
+      echo-tcp:
+        condition: service_healthy
     restart: unless-stopped
 
   # Simple HTTP echo server — responds to any request with request details.
@@ -18,9 +20,21 @@ services:
     image: ealen/echo-server
     environment:
       - PORT=3000
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   # TCP echo service — sends back whatever bytes it receives.
   # Reachable inside Docker as echo-tcp:3003
   echo-tcp:
     image: alpine/socat
     command: TCP-LISTEN:3003,fork,reuseaddr EXEC:cat
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo ping | socat - TCP:localhost:3003,connect-timeout=2"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

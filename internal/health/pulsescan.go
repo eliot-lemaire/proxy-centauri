@@ -13,6 +13,7 @@ import (
 // PulseScan periodically checks whether each backend is alive and updates
 // the balancer to only include healthy Star Systems.
 type PulseScan struct {
+	name     string
 	all      []string
 	protocol string // "http" or "tcp"
 	healthy  sync.Map
@@ -23,8 +24,9 @@ type PulseScan struct {
 
 // New creates a PulseScan for the given addresses, protocol, and balancer.
 // All backends are assumed healthy until proven otherwise.
-func New(addresses []string, protocol string, lb *balancer.RoundRobin, interval time.Duration) *PulseScan {
+func New(name string, addresses []string, protocol string, lb *balancer.RoundRobin, interval time.Duration) *PulseScan {
 	ps := &PulseScan{
+		name:     name,
 		all:      addresses,
 		protocol: protocol,
 		balancer: lb,
@@ -75,16 +77,16 @@ func (ps *PulseScan) check() {
 		if wasHealthy != isHealthy {
 			changed = true
 			if isHealthy {
-				log.Printf("  [ Pulse Scan ] %s  recovered — back in rotation", addr)
+				log.Printf("  [ Pulse Scan ] %s  %s  recovered — back in rotation", ps.name, addr)
 			} else {
-				log.Printf("  [ Pulse Scan ] %s  is dead — removed from rotation", addr)
+				log.Printf("  [ Pulse Scan ] %s  %s  is dead — removed from rotation", ps.name, addr)
 			}
 		}
 	}
 
 	if changed {
 		if len(live) == 0 {
-			log.Println("  [ Pulse Scan ] WARNING: all star systems are dead")
+			log.Printf("  [ Pulse Scan ] %s  WARNING: all star systems are dead", ps.name)
 		}
 		ps.balancer.SetBackends(live)
 	}
