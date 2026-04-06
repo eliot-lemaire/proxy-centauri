@@ -8,6 +8,8 @@
 
 ---
 
+- Added `BENCHMARK.md` to repo root — professional capability report with real load test numbers (1,331 req/s, 0% error, fault isolation verified, chaos test, auto-recovery confirmed)
+
 ## 2026-04-06 (earlier)
 - Created private GitHub repo `eliot-lemaire/proxySite` for the Proxy Centauri pre-launch website
 - Made website fully responsive with CSS media queries (tablet ≤768px, mobile ≤600px): countdown scales, hype grid stacks, form stacks vertically, paddings tighten
