@@ -7,14 +7,29 @@ jump_gates:
   # HTTP reverse proxy — forwards web traffic to one or more backends
   - name: "web-app"
     listen: ":8000"
-    protocol: http
+    protocol: http                    # http | tcp | udp
+    orbital_router: "round_robin"     # round_robin | least_connections | weighted
+    tls:
+      mode: ""                        # "" (off) | "auto" (Let's Encrypt) | "manual"
+      domain: ""                      # required when mode is "auto"
+      cert_file: ""                   # required when mode is "manual"
+      key_file: ""                    # required when mode is "manual"
+    flux_shield:
+      requests_per_second: 0          # 0 = disabled; e.g. 100 = 100 req/s per IP
+      burst: 0                        # max burst above the rate (e.g. 20)
     star_systems:
-      - address: "echo-http:3000"   # Docker service name
+      - address: "echo-http:3000"     # Docker service name
         weight: 1
 
   # TCP tunnel — forwards raw TCP connections (databases, game servers, etc.)
   - name: "tcp-app"
     listen: ":9000"
     protocol: tcp
+    orbital_router: "round_robin"
     star_systems:
-      - address: "echo-tcp:3003"    # Docker service name
+      - address: "echo-tcp:3003"      # Docker service name
+        weight: 1
+
+metrics:
+  enabled: false
+  port: 9090                          # Prometheus scrape endpoint: http://localhost:9090/metrics

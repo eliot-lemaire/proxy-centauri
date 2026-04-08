@@ -10,6 +10,7 @@ import (
 type Config struct {
 	MissionControl MissionControlConfig `yaml:"mission_control"`
 	JumpGates      []JumpGate           `yaml:"jump_gates"`
+	Metrics        MetricsConfig        `yaml:"metrics"`
 }
 
 // MissionControlConfig holds settings for the web dashboard.
@@ -20,16 +21,39 @@ type MissionControlConfig struct {
 
 // JumpGate is a single routing rule — one listener, one protocol, one or more backends.
 type JumpGate struct {
-	Name        string       `yaml:"name"`
-	Listen      string       `yaml:"listen"`
-	Protocol    string       `yaml:"protocol"` // "http" or "tcp"
-	StarSystems []StarSystem `yaml:"star_systems"`
+	Name          string          `yaml:"name"`
+	Listen        string          `yaml:"listen"`
+	Protocol      string          `yaml:"protocol"`       // "http" | "tcp" | "udp"
+	OrbitalRouter string          `yaml:"orbital_router"` // "round_robin" | "least_connections" | "weighted"
+	TLS           TLSConfig       `yaml:"tls"`
+	FluxShield    FluxShieldConfig `yaml:"flux_shield"`
+	StarSystems   []StarSystem    `yaml:"star_systems"`
 }
 
 // StarSystem is a single backend target.
 type StarSystem struct {
 	Address string `yaml:"address"`
 	Weight  int    `yaml:"weight"`
+}
+
+// TLSConfig controls HTTPS for a gate.
+type TLSConfig struct {
+	Mode     string `yaml:"mode"`      // "auto" (Let's Encrypt) | "manual" | "" (disabled)
+	Domain   string `yaml:"domain"`    // required when mode is "auto"
+	CertFile string `yaml:"cert_file"` // required when mode is "manual"
+	KeyFile  string `yaml:"key_file"`  // required when mode is "manual"
+}
+
+// FluxShieldConfig controls per-IP rate limiting for a gate.
+type FluxShieldConfig struct {
+	RequestsPerSecond float64 `yaml:"requests_per_second"` // 0 = disabled
+	Burst             int     `yaml:"burst"`
+}
+
+// MetricsConfig controls the Prometheus metrics endpoint.
+type MetricsConfig struct {
+	Enabled bool `yaml:"enabled"`
+	Port    int  `yaml:"port"` // default: 9090
 }
 
 // Load reads a centauri.yml file from disk and returns a parsed Config.
