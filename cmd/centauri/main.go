@@ -31,8 +31,8 @@ const logo = `
     ╚██████╗███████╗██║ ╚████║   ██║   ██║  ██║╚██████╔╝██║  ██║██║
      ╚═════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝
 
-         ✦  Navigating the cosmos, one request at a time  ✦
-              v0.1.0 — Milestone 1: First Contact
+           ✦  Your traffic, your rules, your universe  ✦
+              v0.2.0 — Milestone 2: Engaging Engines
 `
 
 func main() {
