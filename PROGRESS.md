@@ -1,6 +1,7 @@
 # Centauri — Progress Log
 
 ## 2026-04-08
+- Bumped version to v0.2.0 and updated ASCII banner slogan to "Your traffic, your rules, your universe"
 - Kicked off Milestone 2 ("Engaging Engines") — Step 1 complete
 - Extended config schema in `internal/config/config.go`: added `OrbitalRouter`, `TLS` (mode/domain/cert/key), and `FluxShield` (rps/burst) fields to `JumpGate`; added top-level `MetricsConfig` (enabled/port) to `Config`
 - Updated `centauri.example.yml` with all new fields and inline comments explaining each option
