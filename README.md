@@ -14,8 +14,8 @@
     ╚██████╗███████╗██║ ╚████║   ██║   ██║  ██║╚██████╔╝██║  ██║██║
      ╚═════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝
 
-         ✦  Navigating the cosmos, one request at a time  ✦
-              v0.1.0 — Milestone 1: First Contact
+           ✦  Your traffic, your rules, your universe  ✦
+              v0.2.0 — Milestone 2: Engaging Engines
 ```
 
 # Proxy Centauri
@@ -242,7 +242,7 @@ The Orbital Router uses a round-robin algorithm to distribute requests across al
 
 ## Roadmap
 
-**v0.1.0 — First Contact** ✓
+**v0.1.0 — First Contact** ✓ *(released)*
 
 - [x] L7 HTTP reverse proxy
 - [x] L4 TCP tunneling
@@ -252,17 +252,23 @@ The Orbital Router uses a round-robin algorithm to distribute requests across al
 - [x] Multi-stage Docker build
 - [x] Graceful shutdown
 
+**v0.2.0 — Engaging Engines** *(in progress)*
+
+- [x] Config schema extended — TLS, FluxShield, balancer algorithm, metrics fields
+- [ ] Orbital Router — least-connections + weighted round-robin algorithms
+- [ ] Flux Shield — per-IP token-bucket rate limiting (429 on excess)
+- [ ] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
+- [ ] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)
+- [ ] SQLite metrics persistence (historical data for dashboard)
+- [ ] UDP tunneling — L4 extension alongside TCP
+
 **On the Horizon**
 
 | Feature | Codename | Notes |
 |---|---|---|
 | Web dashboard | Mission Control | Visual gate management, live traffic metrics |
-| AI routing engine | The Oracle | Claude / OpenAI-driven routing decisions and anomaly detection |
-| HTTPS + auto-TLS | — | ACME / Let's Encrypt integration (`tls: auto` in config) |
-| Metrics export | — | Prometheus `/metrics` endpoint |
-| Weighted load balancing | Orbital Router v2 | Activates the `weight` field already parsed in config |
+| AI routing engine | The Oracle | Claude-driven routing decisions and anomaly detection |
 | WebSocket support | — | HTTP upgrade path through Jump Gates |
-| UDP tunneling | — | L4 extension alongside TCP |
 
 ---
 
@@ -301,7 +307,7 @@ proxy-centauri/
 
 ## Contributing
 
-Contributions are welcome. Please open an issue before submitting a pull request for anything beyond typo fixes. The project is early-stage (v0.1.0) — check the roadmap for planned work before starting something major.
+Contributions are welcome. Please open an issue before submitting a pull request for anything beyond typo fixes. The project is early-stage (v0.2.0) — check the roadmap for planned work before starting something major.
 
 ```bash
 git clone https://github.com/eliot-lemaire/proxy-centauri.git
