@@ -52,6 +52,7 @@ Ships as a ~10 MB Docker image built from a multi-stage `golang:1.22-alpine` →
 | **Config Hot-Reload** | `fsnotify` watches `centauri.yml`; reloads without dropping connections or restarting the process |
 | **Multi-Stage Docker Build** | `golang:1.22-alpine` builder → `alpine:3.19` runtime; final image ~10 MB |
 | **Graceful Shutdown** | Listens for `SIGINT`/`SIGTERM`; drains cleanly before exit |
+| **Flux Shield — Rate Limiting** | Per-IP token-bucket rate limiter; configurable RPS and burst; excess requests receive `429 Too Many Requests` with a `Retry-After: 1` header; idle buckets are evicted after 60 s to prevent memory growth |
 
 ---
 
@@ -225,6 +226,33 @@ The Orbital Router uses a round-robin algorithm to distribute requests across al
 </details>
 
 <details>
+<summary>Flux Shield — Rate Limiting</summary>
+
+Flux Shield is a per-IP token-bucket middleware that sits in front of the HTTP proxy.
+
+Each client IP gets its own bucket, filled at `requests_per_second` tokens per second and capped at `burst` tokens. Every request costs one token. When the bucket is empty the request is rejected with **429 Too Many Requests** and a `Retry-After: 1` header — the backend never sees it.
+
+Buckets that receive no traffic for 60 seconds are evicted automatically to prevent unbounded memory use.
+
+Flux Shield is only active when `flux_shield.requests_per_second > 0` in the gate config:
+
+```yaml
+jump_gates:
+  - name: "web-app"
+    listen: ":8000"
+    protocol: http
+    flux_shield:
+      requests_per_second: 10   # token refill rate
+      burst: 20                  # max tokens (concurrent burst size)
+    star_systems:
+      - address: "myapp:3000"
+```
+
+> Setting `requests_per_second: 0` (or omitting the block) disables Flux Shield entirely — zero overhead.
+
+</details>
+
+<details>
 <summary>Config Hot-Reload</summary>
 
 `fsnotify` watches `centauri.yml` for `Write` and `Create` events. On change:
@@ -256,7 +284,7 @@ The Orbital Router uses a round-robin algorithm to distribute requests across al
 
 - [x] Config schema extended — TLS, FluxShield, balancer algorithm, metrics fields
 - [x] Orbital Router — least-connections + weighted round-robin algorithms
-- [ ] Flux Shield — per-IP token-bucket rate limiting (429 on excess)
+- [x] Flux Shield — per-IP token-bucket rate limiting (429 on excess)
 - [ ] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
 - [ ] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)
 - [ ] SQLite metrics persistence (historical data for dashboard)
@@ -283,6 +311,9 @@ proxy-centauri/
 │   ├── balancer/
 │   │   ├── roundrobin.go      # Orbital Router — atomic round-robin LB
 │   │   └── roundrobin_test.go
+│   ├── ratelimit/
+│   │   ├── fluxshield.go      # Flux Shield — per-IP token-bucket rate limiter
+│   │   └── fluxshield_test.go
 │   ├── config/
 │   │   ├── config.go          # YAML structs + Load()
 │   │   └── watcher.go         # Hot-reload via fsnotify
