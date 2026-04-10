@@ -1,5 +1,17 @@
 # Centauri — Progress Log
 
+## 2026-04-10 (later)
+- Milestone 2 Step 5 complete: Prometheus Metrics + Stellar Log
+- Added `internal/metrics/collector.go`: declares 4 labelled Prometheus metrics — `centauri_requests_total` (counter), `centauri_request_duration_seconds` (histogram, 10 custom buckets), `centauri_active_connections` (gauge), `centauri_errors_total` (counter); `Init()` registers with default registry, `Handler()` returns the `/metrics` scrape endpoint
+- Added `internal/metrics/middleware.go`: HTTP middleware that wraps each request — increments active-conn gauge, captures status code via `statusWriter`, observes latency histogram, increments request counter; `newMiddleware` accepts injectable vecs for test isolation
+- Added `internal/logger/stellar.go`: JSON request logger (`stellarlog` package); `New(path)` opens/creates `logs/<gate>.log` with auto-mkdir; `Middleware(gate)` writes one JSON line per request with `time`, `gate`, `method`, `path`, `status`, `latency_ms`, `client_ip`; real client IP extracted from `X-Forwarded-For` header with fallback to `RemoteAddr`
+- Wired full middleware chain in `main.go` (outermost → innermost): FluxShield → Metrics → StellarLog → ReverseProxy; also wired the previously missing FluxShield middleware; metrics server starts once before gate loop when `metrics.enabled: true`
+- Updated `centauri.example.yml` to enable metrics by default (`enabled: true`)
+- 7 new tests: 4 metrics middleware tests (status 200/404, histogram observation, active-conn gauge lifecycle) + 3 Stellar Log tests (JSON shape, status 404, X-Forwarded-For parsing) — all pass; total test suite: 32 tests, 0 failures
+- Updated README: marked Step 5 done in roadmap, added Prometheus Metrics and Stellar Log feature rows, new `<details>` sections, updated architecture diagram with full middleware stack, expanded field reference table
+
+---
+
 ## 2026-04-10
 - Milestone 2 Step 2 complete: Balancer interface + new algorithms
 - Extracted `balancer.Balancer` interface — proxy, tunnel, and health checker no longer depend on `*RoundRobin` directly
