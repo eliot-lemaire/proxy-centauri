@@ -13,6 +13,7 @@ import (
 	"github.com/eliot-lemaire/proxy-centauri/internal/config"
 	"github.com/eliot-lemaire/proxy-centauri/internal/health"
 	"github.com/eliot-lemaire/proxy-centauri/internal/proxy"
+	stellar "github.com/eliot-lemaire/proxy-centauri/internal/tls"
 	"github.com/eliot-lemaire/proxy-centauri/internal/tunnel"
 )
 
@@ -69,12 +70,31 @@ func main() {
 
 		if gate.Protocol == "http" {
 			p := proxy.New(lb)
-			go func(listen string) {
-				if err := http.ListenAndServe(listen, p); err != nil {
-					log.Printf("  [ Jump Gate ] listener on %s failed: %v", listen, err)
-				}
-			}(gate.Listen)
-			fmt.Printf("  [ Orbital Router  ] %s — listening on %s — ready to route\n", algo, gate.Listen)
+			srv := &http.Server{Addr: gate.Listen, Handler: p}
+			switch gate.TLS.Mode {
+			case "auto":
+				srv.TLSConfig = stellar.AutoCert(gate.TLS.Domain, ".certs")
+				go func() {
+					if err := srv.ListenAndServeTLS("", ""); err != nil {
+						log.Printf("  [ Jump Gate ] TLS listener on %s failed: %v", gate.Listen, err)
+					}
+				}()
+				fmt.Printf("  [ Orbital Router  ] %s — listening on %s — TLS auto (Let's Encrypt)\n", algo, gate.Listen)
+			case "manual":
+				go func() {
+					if err := srv.ListenAndServeTLS(gate.TLS.CertFile, gate.TLS.KeyFile); err != nil {
+						log.Printf("  [ Jump Gate ] TLS listener on %s failed: %v", gate.Listen, err)
+					}
+				}()
+				fmt.Printf("  [ Orbital Router  ] %s — listening on %s — TLS manual\n", algo, gate.Listen)
+			default:
+				go func() {
+					if err := srv.ListenAndServe(); err != nil {
+						log.Printf("  [ Jump Gate ] listener on %s failed: %v", gate.Listen, err)
+					}
+				}()
+				fmt.Printf("  [ Orbital Router  ] %s — listening on %s — ready to route\n", algo, gate.Listen)
+			}
 		}
 
 		if gate.Protocol == "tcp" {

@@ -22,7 +22,7 @@
 
 *A lightweight, config-driven reverse proxy for HTTP and TCP — built in Go.*
 
-[![Go 1.22](https://img.shields.io/badge/go-1.22-00ADD8?logo=go&logoColor=white&style=flat-square)](https://golang.org/doc/go1.22)
+[![Go 1.25](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white&style=flat-square)](https://golang.org/doc/go1.25)
 [![Latest Release](https://img.shields.io/github/v/release/eliot-lemaire/proxy-centauri?style=flat-square)](https://github.com/eliot-lemaire/proxy-centauri/releases)
 [![License](https://img.shields.io/github/license/eliot-lemaire/proxy-centauri?style=flat-square)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/eliot-lemaire/proxy-centauri?style=flat-square)](https://goreportcard.com/report/github.com/eliot-lemaire/proxy-centauri)
@@ -53,6 +53,7 @@ Ships as a ~10 MB Docker image built from a multi-stage `golang:1.22-alpine` →
 | **Multi-Stage Docker Build** | `golang:1.22-alpine` builder → `alpine:3.19` runtime; final image ~10 MB |
 | **Graceful Shutdown** | Listens for `SIGINT`/`SIGTERM`; drains cleanly before exit |
 | **Flux Shield — Rate Limiting** | Per-IP token-bucket rate limiter; configurable RPS and burst; excess requests receive `429 Too Many Requests` with a `Retry-After: 1` header; idle buckets are evicted after 60 s to prevent memory growth |
+| **Stellar Encryption — TLS** | HTTPS for any HTTP Jump Gate; `auto` mode fetches and auto-renews certificates from Let's Encrypt; `manual` mode loads a cert/key pair from disk (self-signed or CA-issued) |
 
 ---
 
@@ -253,6 +254,56 @@ jump_gates:
 </details>
 
 <details>
+<summary>Stellar Encryption — TLS / HTTPS</summary>
+
+Stellar Encryption makes any HTTP Jump Gate serve HTTPS. Two modes are supported:
+
+**`auto` — Let's Encrypt (zero-config certs)**
+
+Proxy Centauri uses the ACME protocol to automatically obtain and renew a certificate for your domain. Certificates are cached in a `.certs/` directory. Port 80 must be reachable from the internet for the HTTP-01 challenge.
+
+```yaml
+jump_gates:
+  - name: "web-app"
+    listen: ":443"
+    protocol: http
+    tls:
+      mode: auto
+      domain: "yourdomain.com"   # must resolve to this server's IP
+    star_systems:
+      - address: "myapp:3000"
+```
+
+**`manual` — Bring your own cert**
+
+Load a certificate and private key from disk. Ideal for self-signed certs in local development or certificates issued by an internal CA.
+
+```yaml
+jump_gates:
+  - name: "web-app"
+    listen: ":8443"
+    protocol: http
+    tls:
+      mode: manual
+      cert_file: "cert.pem"
+      key_file: "key.pem"
+    star_systems:
+      - address: "myapp:3000"
+```
+
+Generate a self-signed cert for local testing:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem -days 365 -nodes \
+  -subj "/CN=localhost"
+curl -k https://localhost:8443/
+```
+
+Omitting the `tls` block (or leaving `mode` blank) keeps the gate on plain HTTP — no overhead.
+
+</details>
+
+<details>
 <summary>Config Hot-Reload</summary>
 
 `fsnotify` watches `centauri.yml` for `Write` and `Create` events. On change:
@@ -285,7 +336,7 @@ jump_gates:
 - [x] Config schema extended — TLS, FluxShield, balancer algorithm, metrics fields
 - [x] Orbital Router — least-connections + weighted round-robin algorithms
 - [x] Flux Shield — per-IP token-bucket rate limiting (429 on excess)
-- [ ] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
+- [x] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
 - [ ] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)
 - [ ] SQLite metrics persistence (historical data for dashboard)
 - [ ] UDP tunneling — L4 extension alongside TCP
@@ -314,6 +365,9 @@ proxy-centauri/
 │   ├── ratelimit/
 │   │   ├── fluxshield.go      # Flux Shield — per-IP token-bucket rate limiter
 │   │   └── fluxshield_test.go
+│   ├── tls/
+│   │   ├── stellar.go         # Stellar Encryption — AutoCert (Let's Encrypt) + ManualCert
+│   │   └── stellar_test.go
 │   ├── config/
 │   │   ├── config.go          # YAML structs + Load()
 │   │   └── watcher.go         # Hot-reload via fsnotify
