@@ -1,5 +1,19 @@
 # Centauri — Progress Log
 
+## 2026-04-10
+- Milestone 2 Step 2 complete: Balancer interface + new algorithms
+- Extracted `balancer.Balancer` interface — proxy, tunnel, and health checker no longer depend on `*RoundRobin` directly
+- Added `balancer.NewFromConfig(addrs, weights, algorithm)` factory — selects algorithm from config field
+- Added `LeastConn` balancer: routes each request to the backend with fewest active connections; uses `Acquire`/`Release` to track in-flight work
+- Added `Weighted` balancer: Nginx smooth weighted round-robin — no burst bias; weights come from `star_systems[].weight` in config
+- Added compile-time interface check to `roundrobin.go` (`var _ Balancer = (*RoundRobin)(nil)`)
+- Updated `proxy.go` with context-based tracking for LeastConn Acquire/Release on HTTP request lifecycle
+- Updated `tunnel.go` with `defer lc.Release(addr)` around TCP connection lifetime
+- Updated `main.go` to use `NewFromConfig` and log which algorithm is active per gate
+- 15 tests passing (6 LeastConn, 6 Weighted, 3 RoundRobin), race detector clean
+
+---
+
 ## 2026-04-08
 - Updated README: new slogan, v0.2.0 version in banner, milestone 2 roadmap progress checklist, contributing note bumped to v0.2.0
 - Bumped version to v0.2.0 and updated ASCII banner slogan to "Your traffic, your rules, your universe"

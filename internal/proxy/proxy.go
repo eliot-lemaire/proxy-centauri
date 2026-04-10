@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -9,20 +10,37 @@ import (
 	"github.com/eliot-lemaire/proxy-centauri/internal/balancer"
 )
 
-// Proxy is an HTTP reverse proxy backed by a round-robin balancer.
+// backendAddrKey is the context key used to pass the selected backend address
+// from the director to ModifyResponse/ErrorHandler for LeastConn release.
+type backendAddrKey struct{}
+
+// Proxy is an HTTP reverse proxy backed by a load balancer.
 // It forwards each incoming request to the next live Star System.
 type Proxy struct {
-	balancer *balancer.RoundRobin
+	balancer balancer.Balancer
 	rp       *httputil.ReverseProxy
 }
 
 // New creates a Proxy that uses lb to select a backend for each request.
-func New(lb *balancer.RoundRobin) *Proxy {
+func New(lb balancer.Balancer) *Proxy {
 	p := &Proxy{balancer: lb}
 
 	p.rp = &httputil.ReverseProxy{
 		Director: p.director,
+		ModifyResponse: func(resp *http.Response) error {
+			if lc, ok := p.balancer.(*balancer.LeastConn); ok {
+				if t, ok := resp.Request.Context().Value(backendAddrKey{}).(*string); ok && *t != "" {
+					lc.Release(*t)
+				}
+			}
+			return nil
+		},
 		ErrorHandler: func(w http.ResponseWriter, r *http.Request, err error) {
+			if lc, ok := p.balancer.(*balancer.LeastConn); ok {
+				if t, ok := r.Context().Value(backendAddrKey{}).(*string); ok && *t != "" {
+					lc.Release(*t)
+				}
+			}
 			log.Printf("  [ Jump Gate ] backend error: %v", err)
 			http.Error(w, "502 Bad Gateway", http.StatusBadGateway)
 		},
@@ -33,6 +51,10 @@ func New(lb *balancer.RoundRobin) *Proxy {
 
 // ServeHTTP satisfies http.Handler — called by the HTTP server for every request.
 func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Inject a tracking pointer so director can pass the selected backend addr
+	// back to ModifyResponse / ErrorHandler for LeastConn release.
+	tracking := new(string)
+	r = r.WithContext(context.WithValue(r.Context(), backendAddrKey{}, tracking))
 	p.rp.ServeHTTP(w, r)
 }
 
@@ -40,6 +62,15 @@ func (p *Proxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 // It is called by httputil.ReverseProxy before forwarding each request.
 func (p *Proxy) director(req *http.Request) {
 	addr := p.balancer.Next()
+
+	// Store selected addr for LeastConn release after the request completes.
+	if t, ok := req.Context().Value(backendAddrKey{}).(*string); ok {
+		*t = addr
+	}
+	if lc, ok := p.balancer.(*balancer.LeastConn); ok && addr != "" {
+		lc.Acquire(addr)
+	}
+
 	if addr == "" {
 		// All Star Systems are dead — signal a 503 by setting a sentinel URL.
 		// The ErrorHandler will fire when the connection fails.

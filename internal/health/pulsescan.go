@@ -17,14 +17,14 @@ type PulseScan struct {
 	all      []string
 	protocol string // "http" or "tcp"
 	healthy  sync.Map
-	balancer *balancer.RoundRobin
+	balancer balancer.Balancer
 	interval time.Duration
 	client   *http.Client
 }
 
 // New creates a PulseScan for the given addresses, protocol, and balancer.
 // All backends are assumed healthy until proven otherwise.
-func New(name string, addresses []string, protocol string, lb *balancer.RoundRobin, interval time.Duration) *PulseScan {
+func New(name string, addresses []string, protocol string, lb balancer.Balancer, interval time.Duration) *PulseScan {
 	ps := &PulseScan{
 		name:     name,
 		all:      addresses,

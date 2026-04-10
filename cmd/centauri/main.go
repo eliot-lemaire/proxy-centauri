@@ -50,12 +50,18 @@ func main() {
 		fmt.Printf("  [ Jump Gate       ] %q  →  %s  (%s)\n", gate.Name, gate.Listen, gate.Protocol)
 
 		addrs := make([]string, len(gate.StarSystems))
+		weights := make([]int, len(gate.StarSystems))
 		for i, ss := range gate.StarSystems {
 			addrs[i] = ss.Address
+			weights[i] = ss.Weight
 			fmt.Printf("  [ Star System     ]     %s\n", ss.Address)
 		}
 
-		lb := balancer.New(addrs)
+		algo := gate.OrbitalRouter
+		if algo == "" {
+			algo = "round_robin"
+		}
+		lb := balancer.NewFromConfig(addrs, weights, gate.OrbitalRouter)
 
 		ps := health.New(gate.Name, addrs, gate.Protocol, lb, 5*time.Second)
 		ps.Start()
@@ -68,13 +74,13 @@ func main() {
 					log.Printf("  [ Jump Gate ] listener on %s failed: %v", listen, err)
 				}
 			}(gate.Listen)
-			fmt.Printf("  [ Orbital Router  ] listening on %s — ready to route\n", gate.Listen)
+			fmt.Printf("  [ Orbital Router  ] %s — listening on %s — ready to route\n", algo, gate.Listen)
 		}
 
 		if gate.Protocol == "tcp" {
 			t := tunnel.New(lb)
 			go t.Listen(gate.Listen)
-			fmt.Printf("  [ Orbital Router  ] listening on %s — ready to tunnel\n", gate.Listen)
+			fmt.Printf("  [ Orbital Router  ] %s — listening on %s — ready to tunnel\n", algo, gate.Listen)
 		}
 	}
 

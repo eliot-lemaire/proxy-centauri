@@ -255,7 +255,7 @@ The Orbital Router uses a round-robin algorithm to distribute requests across al
 **v0.2.0 — Engaging Engines** *(in progress)*
 
 - [x] Config schema extended — TLS, FluxShield, balancer algorithm, metrics fields
-- [ ] Orbital Router — least-connections + weighted round-robin algorithms
+- [x] Orbital Router — least-connections + weighted round-robin algorithms
 - [ ] Flux Shield — per-IP token-bucket rate limiting (429 on excess)
 - [ ] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
 - [ ] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)

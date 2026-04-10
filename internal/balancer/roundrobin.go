@@ -5,6 +5,9 @@ import (
 	"sync/atomic"
 )
 
+// Compile-time check: RoundRobin must satisfy the Balancer interface.
+var _ Balancer = (*RoundRobin)(nil)
+
 // RoundRobin distributes requests across a list of backends in order,
 // cycling back to the first after reaching the last.
 type RoundRobin struct {

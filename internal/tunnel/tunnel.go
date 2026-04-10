@@ -12,11 +12,11 @@ import (
 // Tunnel is a raw TCP proxy. It accepts connections on a port and pipes
 // bytes bidirectionally to a backend Star System — no protocol awareness.
 type Tunnel struct {
-	balancer *balancer.RoundRobin
+	balancer balancer.Balancer
 }
 
 // New creates a Tunnel backed by the given balancer.
-func New(lb *balancer.RoundRobin) *Tunnel {
+func New(lb balancer.Balancer) *Tunnel {
 	return &Tunnel{balancer: lb}
 }
 
@@ -48,6 +48,12 @@ func (t *Tunnel) handle(client net.Conn) {
 	if addr == "" {
 		log.Println("  [ TCP Tunnel ] all star systems are dead — dropping connection")
 		return
+	}
+
+	// Track active connection for LeastConn load balancing.
+	if lc, ok := t.balancer.(*balancer.LeastConn); ok {
+		lc.Acquire(addr)
+		defer lc.Release(addr)
 	}
 
 	backend, err := net.Dial("tcp", addr)
