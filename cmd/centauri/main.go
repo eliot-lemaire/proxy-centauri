@@ -12,7 +12,10 @@ import (
 	"github.com/eliot-lemaire/proxy-centauri/internal/balancer"
 	"github.com/eliot-lemaire/proxy-centauri/internal/config"
 	"github.com/eliot-lemaire/proxy-centauri/internal/health"
+	stellarlog "github.com/eliot-lemaire/proxy-centauri/internal/logger"
+	"github.com/eliot-lemaire/proxy-centauri/internal/metrics"
 	"github.com/eliot-lemaire/proxy-centauri/internal/proxy"
+	"github.com/eliot-lemaire/proxy-centauri/internal/ratelimit"
 	stellar "github.com/eliot-lemaire/proxy-centauri/internal/tls"
 	"github.com/eliot-lemaire/proxy-centauri/internal/tunnel"
 )
@@ -47,6 +50,17 @@ func main() {
 
 	fmt.Printf("  [ Mission Control ] %d jump gate(s) configured\n", len(cfg.JumpGates))
 
+	// Start Prometheus metrics endpoint once, before the gate loop.
+	if cfg.Metrics.Enabled {
+		metrics.Init()
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Metrics.Port), metrics.Handler()); err != nil {
+				log.Printf("  [ Metrics         ] server error: %v", err)
+			}
+		}()
+		fmt.Printf("  [ Metrics         ] Prometheus endpoint on :%d/metrics\n", cfg.Metrics.Port)
+	}
+
 	for _, gate := range cfg.JumpGates {
 		fmt.Printf("  [ Jump Gate       ] %q  →  %s  (%s)\n", gate.Name, gate.Listen, gate.Protocol)
 
@@ -69,8 +83,28 @@ func main() {
 		fmt.Printf("  [ Pulse Scan      ] health checks every 5s\n")
 
 		if gate.Protocol == "http" {
-			p := proxy.New(lb)
-			srv := &http.Server{Addr: gate.Listen, Handler: p}
+			// Open the per-gate JSON log file.
+			logPath := fmt.Sprintf("logs/%s.log", gate.Name)
+			sl, err := stellarlog.New(logPath)
+			if err != nil {
+				log.Fatalf("  [ Stellar Log     ] failed to open %s: %v", logPath, err)
+			}
+			fmt.Printf("  [ Stellar Log     ] writing to %s\n", logPath)
+
+			// Build middleware chain — outermost → innermost:
+			// FluxShield → Metrics → StellarLog → ReverseProxy
+			var h http.Handler = proxy.New(lb)
+			h = sl.Middleware(gate.Name)(h)
+			if cfg.Metrics.Enabled {
+				h = metrics.Middleware(gate.Name)(h)
+			}
+			if gate.FluxShield.RequestsPerSecond > 0 {
+				h = ratelimit.New(gate.FluxShield.RequestsPerSecond, gate.FluxShield.Burst).Middleware(h)
+				fmt.Printf("  [ Flux Shield     ] %.0f req/s, burst %d\n",
+					gate.FluxShield.RequestsPerSecond, gate.FluxShield.Burst)
+			}
+
+			srv := &http.Server{Addr: gate.Listen, Handler: h}
 			switch gate.TLS.Mode {
 			case "auto":
 				srv.TLSConfig = stellar.AutoCert(gate.TLS.Domain, ".certs")

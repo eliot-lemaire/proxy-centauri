@@ -54,6 +54,8 @@ Ships as a ~10 MB Docker image built from a multi-stage `golang:1.22-alpine` →
 | **Graceful Shutdown** | Listens for `SIGINT`/`SIGTERM`; drains cleanly before exit |
 | **Flux Shield — Rate Limiting** | Per-IP token-bucket rate limiter; configurable RPS and burst; excess requests receive `429 Too Many Requests` with a `Retry-After: 1` header; idle buckets are evicted after 60 s to prevent memory growth |
 | **Stellar Encryption — TLS** | HTTPS for any HTTP Jump Gate; `auto` mode fetches and auto-renews certificates from Let's Encrypt; `manual` mode loads a cert/key pair from disk (self-signed or CA-issued) |
+| **Prometheus Metrics** | Scrape-ready `/metrics` endpoint on a configurable port; exposes `centauri_requests_total`, `centauri_request_duration_seconds`, `centauri_active_connections`, and `centauri_errors_total` — label-partitioned per gate |
+| **Stellar Log — JSON Logging** | Structured JSON request log written to `logs/<gate>.log` per HTTP gate; fields: `time`, `gate`, `method`, `path`, `status`, `latency_ms`, `client_ip` |
 
 ---
 
@@ -67,9 +69,21 @@ Ships as a ~10 MB Docker image built from a multi-stage `golang:1.22-alpine` →
         └── TCP  :9000 ──▶ │     JUMP GATE (TCP)       │
                            └────────────┬─────────────┘
                                         │
+                           ┌────────────▼─────────────┐
+                           │  FLUX SHIELD (rate limit) │
+                           └────────────┬─────────────┘
+                                        │
+                           ┌────────────▼─────────────┐
+                           │  METRICS (Prometheus)     │
+                           └────────────┬─────────────┘
+                                        │
+                           ┌────────────▼─────────────┐
+                           │  STELLAR LOG (JSON log)   │
+                           └────────────┬─────────────┘
+                                        │
                              ┌──────────▼──────────┐
                              │    ORBITAL ROUTER   │
-                             │   (Round-Robin LB)  │
+                             │   (Load Balancer)   │
                              └────┬──────────┬─────┘
                                   │          │
                      ┌────────────▼──┐  ┌────▼───────────┐
@@ -83,6 +97,8 @@ Ships as a ~10 MB Docker image built from a multi-stage `golang:1.22-alpine` →
                              │  (Health Check) │
                              │   every 5s      │
                              └─────────────────┘
+
+  :9090/metrics ◀── Prometheus scrape
 ```
 
 ---
@@ -179,6 +195,11 @@ jump_gates:
     protocol: tcp
     star_systems:
       - address: "postgres:5432"
+
+# Prometheus metrics endpoint — disabled by default
+metrics:
+  enabled: true
+  port: 9090   # scrape at http://localhost:9090/metrics
 ```
 
 > [!WARNING]
@@ -195,7 +216,16 @@ jump_gates:
 | `jump_gates[].listen` | string | yes | Bind address, e.g. `:8000` or `127.0.0.1:8080` |
 | `jump_gates[].protocol` | string | yes | Transport protocol: `http` or `tcp` |
 | `jump_gates[].star_systems[].address` | string | yes | Backend `host:port` — supports DNS names and IPs |
-| `jump_gates[].star_systems[].weight` | int | no | Reserved for weighted LB — parsed but not yet used |
+| `jump_gates[].star_systems[].weight` | int | no | Backend weight for weighted round-robin; 0 = equal weight |
+| `jump_gates[].orbital_router` | string | no | Load balancer algorithm: `round_robin` (default), `least_connections`, `weighted` |
+| `jump_gates[].flux_shield.requests_per_second` | float | no | Token refill rate per client IP; `0` disables Flux Shield |
+| `jump_gates[].flux_shield.burst` | int | no | Max burst tokens above the rate |
+| `jump_gates[].tls.mode` | string | no | `""` (plain HTTP), `"auto"` (Let's Encrypt), or `"manual"` |
+| `jump_gates[].tls.domain` | string | conditional | Required when `tls.mode` is `"auto"` |
+| `jump_gates[].tls.cert_file` | string | conditional | Required when `tls.mode` is `"manual"` |
+| `jump_gates[].tls.key_file` | string | conditional | Required when `tls.mode` is `"manual"` |
+| `metrics.enabled` | bool | no | Expose Prometheus `/metrics` endpoint (default `false`) |
+| `metrics.port` | int | no | Port for the metrics server (default `9090`) |
 
 </details>
 
@@ -304,6 +334,68 @@ Omitting the `tls` block (or leaving `mode` blank) keeps the gate on plain HTTP 
 </details>
 
 <details>
+<summary>Prometheus Metrics — Observability</summary>
+
+When `metrics.enabled: true` in `centauri.yml`, Proxy Centauri starts a Prometheus-compatible scrape endpoint at `http://localhost:<port>/metrics` (default `:9090`).
+
+**Exposed metrics:**
+
+| Metric | Type | Labels | Description |
+|---|---|---|---|
+| `centauri_requests_total` | Counter | `gate`, `status_code` | Total proxied requests |
+| `centauri_request_duration_seconds` | Histogram | `gate` | End-to-end latency with 10 custom buckets |
+| `centauri_active_connections` | Gauge | `gate` | Requests currently in-flight |
+| `centauri_errors_total` | Counter | `gate`, `error_type` | Proxy-level errors |
+
+**Config:**
+
+```yaml
+metrics:
+  enabled: true
+  port: 9090   # scrape at http://localhost:9090/metrics
+```
+
+**Verify:**
+
+```bash
+curl http://localhost:9090/metrics
+# centauri_requests_total{gate="web-app",status_code="200"} 42
+```
+
+</details>
+
+<details>
+<summary>Stellar Log — JSON Request Logging</summary>
+
+Every HTTP Jump Gate writes one JSON line per request to `logs/<gate-name>.log`. The log file is created automatically (including the `logs/` directory) on startup.
+
+**Example log line:**
+
+```json
+{"time":"2026-04-10T12:00:00Z","gate":"web-app","method":"GET","path":"/api/users","status":200,"latency_ms":4,"client_ip":"203.0.113.42"}
+```
+
+**Fields:**
+
+| Field | Description |
+|---|---|
+| `time` | RFC 3339 UTC timestamp |
+| `gate` | Jump Gate name from config |
+| `method` | HTTP method |
+| `path` | Request path |
+| `status` | HTTP response status code |
+| `latency_ms` | Total request duration in milliseconds |
+| `client_ip` | Real client IP — extracted from `X-Forwarded-For` if present, falls back to `RemoteAddr` |
+
+**Watch live:**
+
+```bash
+tail -f logs/web-app.log
+```
+
+</details>
+
+<details>
 <summary>Config Hot-Reload</summary>
 
 `fsnotify` watches `centauri.yml` for `Write` and `Create` events. On change:
@@ -337,7 +429,7 @@ Omitting the `tls` block (or leaving `mode` blank) keeps the gate on plain HTTP 
 - [x] Orbital Router — least-connections + weighted round-robin algorithms
 - [x] Flux Shield — per-IP token-bucket rate limiting (429 on excess)
 - [x] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
-- [ ] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)
+- [x] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)
 - [ ] SQLite metrics persistence (historical data for dashboard)
 - [ ] UDP tunneling — L4 extension alongside TCP
 
@@ -360,8 +452,15 @@ proxy-centauri/
 │       └── main.go            # Entry point — boots all subsystems, ASCII logo
 ├── internal/
 │   ├── balancer/
+│   │   ├── balancer.go        # Balancer interface + NewFromConfig factory
 │   │   ├── roundrobin.go      # Orbital Router — atomic round-robin LB
-│   │   └── roundrobin_test.go
+│   │   ├── leastconn.go       # Least-connections LB with Acquire/Release
+│   │   └── weighted.go        # Nginx smooth weighted round-robin
+│   ├── metrics/
+│   │   ├── collector.go       # Prometheus metric vars + Init() + Handler()
+│   │   └── middleware.go      # HTTP instrumentation middleware
+│   ├── logger/
+│   │   └── stellar.go         # Stellar Log — structured JSON request logger
 │   ├── ratelimit/
 │   │   ├── fluxshield.go      # Flux Shield — per-IP token-bucket rate limiter
 │   │   └── fluxshield_test.go
@@ -377,8 +476,8 @@ proxy-centauri/
 │   │   └── proxy.go           # L7 HTTP reverse proxy
 │   └── tunnel/
 │       └── tunnel.go          # L4 TCP tunnel
+├── logs/                      # Per-gate JSON request logs (auto-created)
 ├── docs/
-│   ├── plan.md
 │   └── PROGRESS.md
 ├── centauri.example.yml       # Annotated config template
 ├── centauri.yml               # Active config (do not commit secrets)

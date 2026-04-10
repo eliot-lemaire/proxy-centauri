@@ -31,5 +31,5 @@ jump_gates:
         weight: 1
 
 metrics:
-  enabled: false
+  enabled: true                       # set to false to disable the /metrics endpoint
   port: 9090                          # Prometheus scrape endpoint: http://localhost:9090/metrics
