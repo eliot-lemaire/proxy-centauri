@@ -17,6 +17,9 @@ FROM alpine:3.19
 
 WORKDIR /app
 
+# Create directories for SQLite metrics store and JSON request logs
+RUN mkdir -p /app/data /app/logs
+
 # Copy only the compiled binary from the builder stage
 COPY --from=builder /app/centauri .
 

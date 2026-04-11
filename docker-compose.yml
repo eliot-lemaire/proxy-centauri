@@ -5,12 +5,18 @@ services:
     ports:
       - "8000:8000"   # HTTP Jump Gate
       - "9000:9000"   # TCP Jump Gate
+      - "9001:9001/udp"  # UDP Jump Gate
+      - "9090:9090"   # Prometheus metrics
     volumes:
-      - ./centauri.yml:/app/centauri.yml
+      - ./centauri.example.yml:/app/centauri.yml
+      - centauri-data:/app/data
+      - centauri-logs:/app/logs
     depends_on:
       echo-http:
         condition: service_healthy
       echo-tcp:
+        condition: service_healthy
+      echo-udp:
         condition: service_healthy
     restart: unless-stopped
 
@@ -38,3 +44,19 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+
+  # UDP echo service — sends back whatever datagrams it receives.
+  # Reachable inside Docker as echo-udp:3004
+  echo-udp:
+    image: alpine/socat
+    command: UDP-RECVFROM:3004,fork EXEC:cat
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo ping | socat - UDP:localhost:3004"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  centauri-data:
+  centauri-logs:

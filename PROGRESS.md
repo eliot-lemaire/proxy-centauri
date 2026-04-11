@@ -1,5 +1,12 @@
 # Centauri — Progress Log
 
+## 2026-04-11 (docker update)
+- Updated Docker configuration to cover all features added in Steps 5–7
+- **Dockerfile**: added `RUN mkdir -p /app/data /app/logs` in the runtime stage so SQLite store and JSON request logs have writable directories inside the container
+- **docker-compose.yml**: exposed port 9090 (Prometheus metrics); exposed 9001/udp (UDP tunnel); switched config mount from `centauri.yml` (local dev addresses) to `centauri.example.yml` (Docker service names); added named volumes `centauri-data` and `centauri-logs` for persistence; added `echo-udp` service (alpine/socat UDP-RECVFROM:3004) with healthcheck to test the UDP tunnel
+- **centauri.example.yml**: added `udp-app` jump gate on `:9001` pointing to `echo-udp:3004` so Docker smoke tests cover all three protocols (HTTP, TCP, UDP)
+- All 36 tests pass, `go build ./...` clean
+
 ## 2026-04-11 (later)
 - Milestone 2 Step 7 complete: UDP Tunnel
 - Added `internal/tunnel/udp.go`: `UDPTunnel` struct backed by `net.ListenPacket("udp", ...)` — one socket receives all client datagrams; per-client sticky sessions stored in `sync.Map` (clientAddr → `*udpSession`); each new session dials a backend via `balancer.Next()` and spawns a reply-pump goroutine that reads backend responses and writes them back to the client via `conn.WriteTo`; `LoadOrStore` prevents duplicate backend dials under concurrent datagram bursts; sessions idle for 30 s are evicted by a background ticker goroutine

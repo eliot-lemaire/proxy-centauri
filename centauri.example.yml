@@ -30,6 +30,15 @@ jump_gates:
       - address: "echo-tcp:3003"      # Docker service name
         weight: 1
 
+  # UDP tunnel — forwards UDP datagrams (game servers, VoIP, etc.)
+  - name: "udp-app"
+    listen: ":9001"
+    protocol: udp
+    orbital_router: "round_robin"
+    star_systems:
+      - address: "echo-udp:3004"      # Docker service name
+        weight: 1
+
 metrics:
   enabled: true                       # set to false to disable the /metrics endpoint
   port: 9090                          # Prometheus scrape endpoint: http://localhost:9090/metrics
