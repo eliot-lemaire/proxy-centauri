@@ -46,6 +46,40 @@ func (ps *PulseScan) SetEventFunc(fn func(gate, kind, detail string)) {
 	ps.eventFunc = fn
 }
 
+// SetAll replaces the watched address list. New addresses are assumed healthy;
+// addresses no longer present are removed. The balancer is updated immediately.
+func (ps *PulseScan) SetAll(addresses []string) {
+	newSet := make(map[string]struct{}, len(addresses))
+	for _, a := range addresses {
+		newSet[a] = struct{}{}
+	}
+
+	// Mark removed addresses as unhealthy so they disappear from healthy map.
+	for _, a := range ps.all {
+		if _, keep := newSet[a]; !keep {
+			ps.healthy.Delete(a)
+		}
+	}
+
+	// Mark new addresses as healthy by default.
+	for _, a := range addresses {
+		if _, exists := ps.healthy.Load(a); !exists {
+			ps.healthy.Store(a, true)
+		}
+	}
+
+	ps.all = addresses
+
+	// Rebuild live list and push to balancer.
+	live := make([]string, 0, len(addresses))
+	for _, a := range addresses {
+		if ps.Healthy(a) {
+			live = append(live, a)
+		}
+	}
+	ps.balancer.SetBackends(live)
+}
+
 // Start launches the health check loop in the background.
 func (ps *PulseScan) Start() {
 	go func() {

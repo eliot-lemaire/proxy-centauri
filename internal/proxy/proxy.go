@@ -41,6 +41,11 @@ func New(lb balancer.Balancer) *Proxy {
 					lc.Release(*t)
 				}
 			}
+			// If no backend was selected (all Star Systems dead), return 503.
+			if t, ok := r.Context().Value(backendAddrKey{}).(*string); ok && *t == "" {
+				http.Error(w, "503 Service Unavailable", http.StatusServiceUnavailable)
+				return
+			}
 			log.Printf("  [ Jump Gate ] backend error: %v", err)
 			http.Error(w, "502 Bad Gateway", http.StatusBadGateway)
 		},

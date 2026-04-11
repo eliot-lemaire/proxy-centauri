@@ -1,0 +1,43 @@
+mission_control:
+  port: 8080
+  secret: "test-secret"
+
+jump_gates:
+
+  # HTTP gate with 3 backends, rate limiting active
+  - name: "web-app"
+    listen: ":8000"
+    protocol: http
+    orbital_router: "round_robin"
+    flux_shield:
+      requests_per_second: 5    # low: triggers quickly in rate-limit tests
+      burst: 10
+    star_systems:
+      - address: "echo-http:3000"
+        weight: 1
+      - address: "echo-http-2:3001"
+        weight: 1
+      - address: "echo-http-3:3002"
+        weight: 1
+
+  # TCP tunnel
+  - name: "tcp-app"
+    listen: ":9000"
+    protocol: tcp
+    orbital_router: "round_robin"
+    star_systems:
+      - address: "echo-tcp:3003"
+        weight: 1
+
+  # UDP tunnel
+  - name: "udp-app"
+    listen: ":9001"
+    protocol: udp
+    orbital_router: "round_robin"
+    star_systems:
+      - address: "echo-udp:3004"
+        weight: 1
+
+metrics:
+  enabled: true
+  port: 9090

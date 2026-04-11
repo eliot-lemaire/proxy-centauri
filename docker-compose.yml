@@ -51,11 +51,11 @@ services:
     image: alpine/socat
     command: UDP-RECVFROM:3004,fork EXEC:cat
     healthcheck:
-      test: ["CMD", "sh", "-c", "echo ping | socat - UDP:localhost:3004"]
+      test: ["CMD", "sh", "-c", "echo ping | socat -t2 - UDP:localhost:3004 | grep -q ping"]
       interval: 5s
-      timeout: 3s
+      timeout: 5s
       retries: 5
-      start_period: 5s
+      start_period: 10s
 
 volumes:
   centauri-data:

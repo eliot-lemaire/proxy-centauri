@@ -25,5 +25,5 @@ vendor/
 .DS_Store
 Thumbs.db
 
-# Docs (local only — plan and progress files)
-docs/
+# Local scratch files
+*.local.md

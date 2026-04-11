@@ -57,6 +57,15 @@ func Init() {
 	prometheus.MustRegister(RequestsTotal, RequestDuration, ActiveConns, ErrorsTotal)
 }
 
+// InitGate pre-initialises zero-value label combinations for a gate so all
+// metric families appear in /metrics output even before any traffic arrives.
+func InitGate(gate string) {
+	RequestsTotal.WithLabelValues(gate, "200").Add(0)
+	RequestDuration.WithLabelValues(gate).Observe(0)
+	ActiveConns.WithLabelValues(gate).Add(0)
+	ErrorsTotal.WithLabelValues(gate, "backend_error").Add(0)
+}
+
 // Handler returns the HTTP handler that serves the /metrics endpoint.
 func Handler() http.Handler {
 	return promhttp.Handler()

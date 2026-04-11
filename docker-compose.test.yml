@@ -1,0 +1,36 @@
+services:
+
+  centauri:
+    volumes:
+      - ./centauri.test.yml:/app/centauri.yml   # override to full test config
+    ports:
+      - "8001:8001"   # least_connections gate (lb-test config only)
+    depends_on:
+      echo-http-2:
+        condition: service_healthy
+      echo-http-3:
+        condition: service_healthy
+
+  # Second HTTP backend — port 3001 inside Docker
+  echo-http-2:
+    image: ealen/echo-server
+    environment:
+      - PORT=3001
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  # Third HTTP backend — port 3002 inside Docker
+  echo-http-3:
+    image: ealen/echo-server
+    environment:
+      - PORT=3002
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3002/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s

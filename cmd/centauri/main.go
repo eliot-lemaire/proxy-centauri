@@ -92,6 +92,12 @@ func main() {
 		}()
 	}
 
+	// gateRegistry maps gate name → running PulseScan for hot-reload backend updates.
+	type gateState struct {
+		ps *health.PulseScan
+	}
+	gateRegistry := make(map[string]*gateState, len(cfg.JumpGates))
+
 	for _, gate := range cfg.JumpGates {
 		fmt.Printf("  [ Jump Gate       ] %q  →  %s  (%s)\n", gate.Name, gate.Listen, gate.Protocol)
 
@@ -118,9 +124,14 @@ func main() {
 			})
 		}
 		ps.Start()
+		gateRegistry[gate.Name] = &gateState{ps: ps}
 		fmt.Printf("  [ Pulse Scan      ] health checks every 5s\n")
 
 		if gate.Protocol == "http" {
+			if cfg.Metrics.Enabled {
+				metrics.InitGate(gate.Name)
+			}
+
 			// Open the per-gate JSON log file.
 			logPath := fmt.Sprintf("logs/%s.log", gate.Name)
 			sl, err := stellarlog.New(logPath)
@@ -186,6 +197,19 @@ func main() {
 		fmt.Printf("  [ Config          ] Reloaded — %d jump gate(s)\n", len(newCfg.JumpGates))
 		if store != nil {
 			store.LogEvent("*", "config_reload", "centauri.yml")
+		}
+		// Apply updated star_systems to running health checkers (and their balancers).
+		// Adding/removing entire gates requires a restart.
+		for _, newGate := range newCfg.JumpGates {
+			if gs, ok := gateRegistry[newGate.Name]; ok {
+				newAddrs := make([]string, len(newGate.StarSystems))
+				for i, ss := range newGate.StarSystems {
+					newAddrs[i] = ss.Address
+				}
+				gs.ps.SetAll(newAddrs)
+				fmt.Printf("  [ Config          ] %q star systems updated (%d backend(s))\n",
+					newGate.Name, len(newAddrs))
+			}
 		}
 	}); err != nil {
 		log.Fatalf("  [ Mission Control ] Failed to start config watcher: %v", err)

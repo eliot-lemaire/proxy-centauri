@@ -1,0 +1,53 @@
+mission_control:
+  port: 8080
+  secret: "test-secret"
+
+jump_gates:
+
+  # Weighted round-robin: 3:2:1 distribution across 3 backends
+  - name: "weighted-gate"
+    listen: ":8000"
+    protocol: http
+    orbital_router: "weighted"
+    star_systems:
+      - address: "echo-http:3000"
+        weight: 3
+      - address: "echo-http-2:3001"
+        weight: 2
+      - address: "echo-http-3:3002"
+        weight: 1
+
+  # Least-connections: routes to backend with fewest in-flight requests
+  - name: "leastconn-gate"
+    listen: ":8001"
+    protocol: http
+    orbital_router: "least_connections"
+    star_systems:
+      - address: "echo-http:3000"
+        weight: 1
+      - address: "echo-http-2:3001"
+        weight: 1
+      - address: "echo-http-3:3002"
+        weight: 1
+
+  # TCP tunnel
+  - name: "tcp-app"
+    listen: ":9000"
+    protocol: tcp
+    orbital_router: "round_robin"
+    star_systems:
+      - address: "echo-tcp:3003"
+        weight: 1
+
+  # UDP tunnel
+  - name: "udp-app"
+    listen: ":9001"
+    protocol: udp
+    orbital_router: "round_robin"
+    star_systems:
+      - address: "echo-udp:3004"
+        weight: 1
+
+metrics:
+  enabled: true
+  port: 9090
