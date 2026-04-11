@@ -1,5 +1,15 @@
 # Centauri — Progress Log
 
+## 2026-04-11 (later)
+- Milestone 2 Step 7 complete: UDP Tunnel
+- Added `internal/tunnel/udp.go`: `UDPTunnel` struct backed by `net.ListenPacket("udp", ...)` — one socket receives all client datagrams; per-client sticky sessions stored in `sync.Map` (clientAddr → `*udpSession`); each new session dials a backend via `balancer.Next()` and spawns a reply-pump goroutine that reads backend responses and writes them back to the client via `conn.WriteTo`; `LoadOrStore` prevents duplicate backend dials under concurrent datagram bursts; sessions idle for 30 s are evicted by a background ticker goroutine
+- Added `internal/tunnel/udp_test.go`: 3 integration tests over loopback — `TestUDPTunnel_ForwardAndReply` (single round-trip), `TestUDPTunnel_SessionReuse` (3 datagrams on same connection), `TestUDPTunnel_MultipleClients` (5 concurrent clients); all use a real UDP echo server and a stub `Balancer`; all pass, race-clean
+- Wired `"udp"` protocol branch in `main.go` alongside existing `"tcp"` branch: `tunnel.NewUDP(lb).Listen(gate.Listen)` in a goroutine
+- No new dependencies — `net` stdlib only
+- README: added UDP to tagline, features table, architecture diagram, Quick Start, config example, field reference, new UDP Tunnel `<details>` section, roadmap item marked complete, project structure updated
+
+---
+
 ## 2026-04-11
 - Milestone 2 Step 6 complete: SQLite Metrics Persistence
 - Added `internal/metrics/store.go`: `Store` struct backed by `database/sql` + `modernc.org/sqlite` (pure-Go, no CGo); schema: `request_stats` (ts, gate, req_total, err_total, p95_ms) and `events` (ts, gate, kind, detail); `OpenStore` creates directory + sets `MaxOpenConns(1)` to prevent `SQLITE_BUSY` under concurrent writers; `Init` uses two separate `Exec` calls (modernc driver doesn't support multi-statement exec)
