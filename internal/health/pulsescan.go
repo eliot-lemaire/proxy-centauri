@@ -13,13 +13,14 @@ import (
 // PulseScan periodically checks whether each backend is alive and updates
 // the balancer to only include healthy Star Systems.
 type PulseScan struct {
-	name     string
-	all      []string
-	protocol string // "http" or "tcp"
-	healthy  sync.Map
-	balancer balancer.Balancer
-	interval time.Duration
-	client   *http.Client
+	name      string
+	all       []string
+	protocol  string // "http" or "tcp"
+	healthy   sync.Map
+	balancer  balancer.Balancer
+	interval  time.Duration
+	client    *http.Client
+	eventFunc func(gate, kind, detail string)
 }
 
 // New creates a PulseScan for the given addresses, protocol, and balancer.
@@ -37,6 +38,12 @@ func New(name string, addresses []string, protocol string, lb balancer.Balancer,
 		ps.healthy.Store(addr, true)
 	}
 	return ps
+}
+
+// SetEventFunc registers a callback that is called whenever a backend changes
+// health state. kind is "backend_up" or "backend_down"; detail is the address.
+func (ps *PulseScan) SetEventFunc(fn func(gate, kind, detail string)) {
+	ps.eventFunc = fn
 }
 
 // Start launches the health check loop in the background.
@@ -78,8 +85,14 @@ func (ps *PulseScan) check() {
 			changed = true
 			if isHealthy {
 				log.Printf("  [ Pulse Scan ] %s  %s  recovered — back in rotation", ps.name, addr)
+				if ps.eventFunc != nil {
+					ps.eventFunc(ps.name, "backend_up", addr)
+				}
 			} else {
 				log.Printf("  [ Pulse Scan ] %s  %s  is dead — removed from rotation", ps.name, addr)
+				if ps.eventFunc != nil {
+					ps.eventFunc(ps.name, "backend_down", addr)
+				}
 			}
 		}
 	}

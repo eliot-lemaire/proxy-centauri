@@ -1,5 +1,17 @@
 # Centauri — Progress Log
 
+## 2026-04-11
+- Milestone 2 Step 6 complete: SQLite Metrics Persistence
+- Added `internal/metrics/store.go`: `Store` struct backed by `database/sql` + `modernc.org/sqlite` (pure-Go, no CGo); schema: `request_stats` (ts, gate, req_total, err_total, p95_ms) and `events` (ts, gate, kind, detail); `OpenStore` creates directory + sets `MaxOpenConns(1)` to prevent `SQLITE_BUSY` under concurrent writers; `Init` uses two separate `Exec` calls (modernc driver doesn't support multi-statement exec)
+- Added `Snapshots(gateNames)` to `collector.go`: reads `prometheus.DefaultGatherer`, sums counters per gate across all label dimensions, computes p95 latency (ms) from histogram buckets via linear interpolation; `MetricsSnapshot` struct lives alongside it
+- Added `SetEventFunc` to `PulseScan` (`pulsescan.go`): non-breaking callback field; fires `backend_up`/`backend_down` events at existing state-transition points
+- Wired in `main.go` (inside `cfg.Metrics.Enabled` block): opens store at `data/metrics.db`, starts 30s ticker goroutine flushing `Snapshots()` per gate, hooks `SetEventFunc` per gate into store, logs `config_reload` event from Watch callback; blank-imports `modernc.org/sqlite` in main
+- 4 new tests (in-memory SQLite): `TestOpenStore`, `TestFlush_RoundTrip`, `TestLogEvent_RoundTrip`, `TestClose` — all pass; total suite now 36 tests
+- Live-verified: backend_down events appear in `events` table within 5s; `request_stats` rows appear after 30s ticker with correct `req_total` and `p95_ms` values
+- README: marked Step 6 done in roadmap, updated project structure
+
+---
+
 ## 2026-04-10 (later)
 - Milestone 2 Step 5 complete: Prometheus Metrics + Stellar Log
 - Added `internal/metrics/collector.go`: declares 4 labelled Prometheus metrics — `centauri_requests_total` (counter), `centauri_request_duration_seconds` (histogram, 10 custom buckets), `centauri_active_connections` (gauge), `centauri_errors_total` (counter); `Init()` registers with default registry, `Handler()` returns the `/metrics` scrape endpoint

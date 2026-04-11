@@ -18,6 +18,7 @@ import (
 	"github.com/eliot-lemaire/proxy-centauri/internal/ratelimit"
 	stellar "github.com/eliot-lemaire/proxy-centauri/internal/tls"
 	"github.com/eliot-lemaire/proxy-centauri/internal/tunnel"
+	_ "modernc.org/sqlite"
 )
 
 const logo = `
@@ -50,7 +51,14 @@ func main() {
 
 	fmt.Printf("  [ Mission Control ] %d jump gate(s) configured\n", len(cfg.JumpGates))
 
-	// Start Prometheus metrics endpoint once, before the gate loop.
+	// Collect gate names upfront — needed by the metrics flush ticker.
+	gateNames := make([]string, len(cfg.JumpGates))
+	for i, g := range cfg.JumpGates {
+		gateNames[i] = g.Name
+	}
+
+	// Start Prometheus metrics endpoint + SQLite store (both guarded by Metrics.Enabled).
+	var store *metrics.Store
 	if cfg.Metrics.Enabled {
 		metrics.Init()
 		go func() {
@@ -59,6 +67,29 @@ func main() {
 			}
 		}()
 		fmt.Printf("  [ Metrics         ] Prometheus endpoint on :%d/metrics\n", cfg.Metrics.Port)
+
+		store, err = metrics.OpenStore("data/metrics.db")
+		if err != nil {
+			log.Fatalf("  [ Store           ] failed to open data/metrics.db: %v", err)
+		}
+		if err := store.Init(); err != nil {
+			log.Fatalf("  [ Store           ] failed to init schema: %v", err)
+		}
+		defer store.Close()
+		fmt.Println("  [ Store           ] SQLite metrics store at data/metrics.db")
+
+		// Flush a snapshot per gate every 30 seconds.
+		go func() {
+			ticker := time.NewTicker(30 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				for _, snap := range metrics.Snapshots(gateNames) {
+					if err := store.Flush(snap); err != nil {
+						log.Printf("  [ Store           ] flush error: %v", err)
+					}
+				}
+			}
+		}()
 	}
 
 	for _, gate := range cfg.JumpGates {
@@ -79,6 +110,13 @@ func main() {
 		lb := balancer.NewFromConfig(addrs, weights, gate.OrbitalRouter)
 
 		ps := health.New(gate.Name, addrs, gate.Protocol, lb, 5*time.Second)
+		if store != nil {
+			ps.SetEventFunc(func(g, kind, detail string) {
+				if err := store.LogEvent(g, kind, detail); err != nil {
+					log.Printf("  [ Store           ] event log error: %v", err)
+				}
+			})
+		}
 		ps.Start()
 		fmt.Printf("  [ Pulse Scan      ] health checks every 5s\n")
 
@@ -140,6 +178,9 @@ func main() {
 
 	if err := config.Watch("centauri.yml", func(newCfg *config.Config) {
 		fmt.Printf("  [ Config          ] Reloaded — %d jump gate(s)\n", len(newCfg.JumpGates))
+		if store != nil {
+			store.LogEvent("*", "config_reload", "centauri.yml")
+		}
 	}); err != nil {
 		log.Fatalf("  [ Mission Control ] Failed to start config watcher: %v", err)
 	}

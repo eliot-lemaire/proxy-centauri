@@ -430,7 +430,7 @@ tail -f logs/web-app.log
 - [x] Flux Shield — per-IP token-bucket rate limiting (429 on excess)
 - [x] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
 - [x] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)
-- [ ] SQLite metrics persistence (historical data for dashboard)
+- [x] SQLite metrics persistence (historical data for dashboard)
 - [ ] UDP tunneling — L4 extension alongside TCP
 
 **On the Horizon**
@@ -457,8 +457,9 @@ proxy-centauri/
 │   │   ├── leastconn.go       # Least-connections LB with Acquire/Release
 │   │   └── weighted.go        # Nginx smooth weighted round-robin
 │   ├── metrics/
-│   │   ├── collector.go       # Prometheus metric vars + Init() + Handler()
-│   │   └── middleware.go      # HTTP instrumentation middleware
+│   │   ├── collector.go       # Prometheus metric vars + Init() + Handler() + Snapshots()
+│   │   ├── middleware.go      # HTTP instrumentation middleware
+│   │   └── store.go           # SQLite persistence — request_stats + events tables
 │   ├── logger/
 │   │   └── stellar.go         # Stellar Log — structured JSON request logger
 │   ├── ratelimit/
