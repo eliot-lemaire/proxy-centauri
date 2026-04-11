@@ -20,7 +20,7 @@
 
 # Proxy Centauri
 
-*A lightweight, config-driven reverse proxy for HTTP and TCP — built in Go.*
+*A lightweight, config-driven reverse proxy for HTTP, TCP, and UDP — built in Go.*
 
 [![Go 1.25](https://img.shields.io/badge/go-1.25-00ADD8?logo=go&logoColor=white&style=flat-square)](https://golang.org/doc/go1.25)
 [![Latest Release](https://img.shields.io/github/v/release/eliot-lemaire/proxy-centauri?style=flat-square)](https://github.com/eliot-lemaire/proxy-centauri/releases)
@@ -47,6 +47,7 @@ Ships as a ~10 MB Docker image built from a multi-stage `golang:1.22-alpine` →
 |---|---|
 | **L7 HTTP Reverse Proxy** | Forwards HTTP requests via Go's `httputil.ReverseProxy`; preserves real client IP with `X-Forwarded-For`; returns `502` on backend error, `503` when all Star Systems are unreachable |
 | **L4 TCP Tunneling** | Bidirectional byte pipe — protocol-agnostic; works for databases, game servers, or any raw TCP service |
+| **L4 UDP Tunneling** | Datagram forwarding with per-client sticky sessions; one backend connection per source IP for the duration of the session; idle sessions evicted after 30 s; use cases: DNS, VoIP, game servers |
 | **Orbital Router — Round-Robin LB** | Lock-free atomic counter; concurrent-safe; distributes requests evenly across all live Star Systems |
 | **Pulse Scan Health Checker** | HTTP: `GET` with 2s timeout (any `< 500` response = alive); TCP: raw dial with 2s timeout; checks every 5s; auto-removes dead backends and restores them on recovery |
 | **Config Hot-Reload** | `fsnotify` watches `centauri.yml`; reloads without dropping connections or restarting the process |
@@ -66,7 +67,8 @@ Ships as a ~10 MB Docker image built from a multi-stage `golang:1.22-alpine` →
         │
         ├── HTTP :8000 ──▶ ┌──────────────────────────┐
         │                  │     JUMP GATE (HTTP)      │
-        └── TCP  :9000 ──▶ │     JUMP GATE (TCP)       │
+        ├── TCP  :9000 ──▶ │     JUMP GATE (TCP)       │
+        └── UDP  :9001 ──▶ │     JUMP GATE (UDP)       │
                            └────────────┬─────────────┘
                                         │
                            ┌────────────▼─────────────┐
@@ -127,6 +129,9 @@ curl http://localhost:8000/
 
 # Test the TCP Jump Gate
 echo "hello" | nc localhost 9000
+
+# Test the UDP Jump Gate
+echo "hello" | nc -u localhost 9001
 ```
 
 To run in the background: `docker compose up -d --build`
@@ -196,6 +201,15 @@ jump_gates:
     star_systems:
       - address: "postgres:5432"
 
+  # UDP Tunnel
+  # Forwards datagrams with per-client sticky sessions.
+  # Works for: DNS servers, VoIP, game servers, anything UDP.
+  - name: "dns-proxy"
+    listen: ":5353"
+    protocol: udp
+    star_systems:
+      - address: "dns-backend:53"
+
 # Prometheus metrics endpoint — disabled by default
 metrics:
   enabled: true
@@ -214,7 +228,7 @@ metrics:
 | `mission_control.secret` | string | no | Reserved: dashboard auth secret — change before deploying |
 | `jump_gates[].name` | string | yes | Unique name, shown in log output |
 | `jump_gates[].listen` | string | yes | Bind address, e.g. `:8000` or `127.0.0.1:8080` |
-| `jump_gates[].protocol` | string | yes | Transport protocol: `http` or `tcp` |
+| `jump_gates[].protocol` | string | yes | Transport protocol: `http`, `tcp`, or `udp` |
 | `jump_gates[].star_systems[].address` | string | yes | Backend `host:port` — supports DNS names and IPs |
 | `jump_gates[].star_systems[].weight` | int | no | Backend weight for weighted round-robin; 0 = equal weight |
 | `jump_gates[].orbital_router` | string | no | Load balancer algorithm: `round_robin` (default), `least_connections`, `weighted` |
@@ -396,6 +410,40 @@ tail -f logs/web-app.log
 </details>
 
 <details>
+<summary>UDP Tunneling — Datagram Forwarding</summary>
+
+UDP is stateless — there are no connections, only individual datagrams. Proxy Centauri handles this by maintaining a **sticky session table**: the first datagram from a client IP dials a backend (chosen by the Orbital Router) and stores that connection in a `sync.Map`. All subsequent datagrams from the same source reuse that connection, and backend replies are sent back to the original client.
+
+**Session lifecycle:**
+- New source IP → `balancer.Next()` picks a backend → backend connection dialed → session stored
+- Existing source IP → session looked up, datagram forwarded immediately
+- Sessions idle for **30 seconds** are closed and evicted automatically
+
+**Use cases:** DNS servers, VoIP gateways, game servers, QUIC-over-UDP, time sync (NTP), IoT sensors.
+
+**Config:**
+
+```yaml
+jump_gates:
+  - name: "dns-proxy"
+    listen: ":5353"
+    protocol: udp
+    star_systems:
+      - address: "dns-backend:53"
+```
+
+**Verify:**
+
+```bash
+echo "hello" | nc -u localhost 5353
+# backend receives the datagram; reply comes back to the client
+```
+
+> UDP gates do not support Flux Shield, Stellar Log, TLS, or Prometheus middleware — those are HTTP-layer features. The Orbital Router (all three algorithms) and Pulse Scan health checking work normally.
+
+</details>
+
+<details>
 <summary>Config Hot-Reload</summary>
 
 `fsnotify` watches `centauri.yml` for `Write` and `Create` events. On change:
@@ -431,7 +479,7 @@ tail -f logs/web-app.log
 - [x] Stellar Encryption — HTTPS with Let's Encrypt auto-cert or manual cert/key
 - [x] Prometheus metrics endpoint + structured JSON request logging (Stellar Log)
 - [x] SQLite metrics persistence (historical data for dashboard)
-- [ ] UDP tunneling — L4 extension alongside TCP
+- [x] UDP tunneling — L4 datagram forwarding with sticky sessions
 
 **On the Horizon**
 
@@ -476,7 +524,8 @@ proxy-centauri/
 │   ├── proxy/
 │   │   └── proxy.go           # L7 HTTP reverse proxy
 │   └── tunnel/
-│       └── tunnel.go          # L4 TCP tunnel
+│       ├── tunnel.go          # L4 TCP tunnel
+│       └── udp.go             # L4 UDP tunnel — sticky sessions, idle eviction
 ├── logs/                      # Per-gate JSON request logs (auto-created)
 ├── docs/
 │   └── PROGRESS.md

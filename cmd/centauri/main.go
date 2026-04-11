@@ -174,6 +174,12 @@ func main() {
 			go t.Listen(gate.Listen)
 			fmt.Printf("  [ Orbital Router  ] %s — listening on %s — ready to tunnel\n", algo, gate.Listen)
 		}
+
+		if gate.Protocol == "udp" {
+			t := tunnel.NewUDP(lb)
+			go t.Listen(gate.Listen)
+			fmt.Printf("  [ Orbital Router  ] %s — listening on %s — ready to tunnel (UDP)\n", algo, gate.Listen)
+		}
 	}
 
 	if err := config.Watch("centauri.yml", func(newCfg *config.Config) {
