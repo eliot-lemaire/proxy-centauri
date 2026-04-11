@@ -107,10 +107,14 @@ func (ps *PulseScan) check() {
 
 // ping checks if the backend is alive using the appropriate method for the protocol.
 func (ps *PulseScan) ping(address string) bool {
-	if ps.protocol == "tcp" {
+	switch ps.protocol {
+	case "tcp":
 		return ps.pingTCP(address)
+	case "udp":
+		return ps.pingUDP(address)
+	default:
+		return ps.pingHTTP(address)
 	}
-	return ps.pingHTTP(address)
 }
 
 // pingHTTP attempts an HTTP GET and returns true if the backend responds.
@@ -131,4 +135,20 @@ func (ps *PulseScan) pingTCP(address string) bool {
 	}
 	conn.Close()
 	return true
+}
+
+// pingUDP sends a small datagram and waits for any reply within 2s.
+func (ps *PulseScan) pingUDP(address string) bool {
+	conn, err := net.DialTimeout("udp", address, 2*time.Second)
+	if err != nil {
+		return false
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(2 * time.Second))
+	if _, err := conn.Write([]byte("ping")); err != nil {
+		return false
+	}
+	buf := make([]byte, 4)
+	_, err = conn.Read(buf)
+	return err == nil
 }

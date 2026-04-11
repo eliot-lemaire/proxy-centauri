@@ -1,5 +1,10 @@
 # Centauri — Progress Log
 
+## 2026-04-11 (docker fixes)
+- Fixed Dockerfile: bumped builder image from `golang:1.22-alpine` to `golang:1.25-alpine` to match `go.mod` requirement — `go mod download` was failing with "requires go >= 1.25.0"
+- Fixed UDP health checker in `internal/health/pulsescan.go`: `ping()` was falling through to `pingHTTP` for UDP backends; added `pingUDP()` method that dials a connected UDP socket, sends `"ping"`, and waits for any reply within 2s; added `"udp"` case to `ping()` switch; echo-udp backend now passes health checks cleanly with no "is dead" errors
+- Verified in Docker: all 3 gates healthy, no "dead" log lines after restart
+
 ## 2026-04-11 (docker update)
 - Updated Docker configuration to cover all features added in Steps 5–7
 - **Dockerfile**: added `RUN mkdir -p /app/data /app/logs` in the runtime stage so SQLite store and JSON request logs have writable directories inside the container
