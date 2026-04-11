@@ -1,5 +1,42 @@
 # Centauri — Progress Log
 
+## 2026-04-11 (testing + bug fixes + docs)
+
+**Milestone 2 QA pass: full integration test suite, 4 bug fixes, quickstart guide**
+
+### Bug Fixes
+- **`internal/proxy/proxy.go`**: ErrorHandler now returns `503 Service Unavailable` (not `502`) when `balancer.Next()` returns `""` (all Star Systems dead) — checked via tracked backend addr on the request context
+- **`cmd/centauri/main.go` + `internal/health/pulsescan.go`**: Hot-reload now actually applies `star_systems` changes. Built a `gateRegistry` map before the gate loop; Watch callback iterates new config gates, looks up by name, and calls `ps.SetAll(newAddrs)`. Added `SetAll()` to `PulseScan` — replaces the watched address list, cleans up stale healthy-map entries, marks new addresses healthy, and calls `balancer.SetBackends()` immediately.
+- **`docker-compose.yml`**: Fixed UDP healthcheck false-positive. `echo ping | socat - UDP:localhost:3004` exits 0 even when socat isn't ready (UDP is connectionless). Changed to pipe through `grep -q ping` so it only passes when a real echo is received.
+- **`internal/metrics/collector.go` + `cmd/centauri/main.go`**: Added `InitGate(gate string)` to pre-register zero-value label combinations for all four metric families. Called from `main.go` for each HTTP gate at startup so all metric families appear in `/metrics` output even before any traffic arrives.
+
+### Test Infrastructure
+- **`scripts/lib/common.sh`**: Shared bash library — `pass()`, `fail()`, `warn()`, `info()`, `header()`, `wait_for_port()`, `wait_for_http()`, `summary()` with colored output and exit code
+- **`centauri.test.yml`**: 3 HTTP backends, rate limit 5 rps/burst=10, all 3 protocols active
+- **`centauri.lb-test.yml`**: weighted (3:2:1) gate on `:8000`, least_connections gate on `:8001`
+- **`docker-compose.test.yml`**: Compose overlay adding `echo-http-2` (port 3001) and `echo-http-3` (port 3002)
+
+### Test Scripts (all passing)
+- `scripts/smoke-test.sh` — basic reachability of all 4 endpoints
+- `scripts/test-http.sh` — HTTP proxy: 7 checks (methods, headers, query params)
+- `scripts/test-lb.sh` — round-robin distribution across 3 backends; perfect 20/20/20 on 60 requests
+- `scripts/test-ratelimit.sh` — Flux Shield: 429 triggered, Retry-After header verified
+- `scripts/test-tcp.sh` — TCP tunnel echo including 1 KB payload
+- `scripts/test-udp.sh` — UDP sticky-session echo including 1000-byte datagram
+- `scripts/test-metrics.sh` — 10/10 Prometheus checks including counter increment after traffic
+- `scripts/test-healthcheck.sh` — all backends killed → 503 detected in 3s → 200 recovered in 5s
+- `scripts/test-hotreload.sh` — config file write triggers reload log within 1s
+- `scripts/stress-http.sh` — 300 requests, 20 workers: 300 req/s, 100% success
+- `scripts/stress-tcp.sh` — 50 concurrent connections: 100% success
+- `scripts/stress-udp.sh` — 100 datagrams: 100% delivery
+
+### Documentation
+- **`docs/SETUP.md`**: Full technical guide — prerequisites, quick start, complete YAML field reference, all 11 features explained, TLS setup (auto + manual), monitoring (Prometheus + SQLite), test suite usage, troubleshooting
+- **`QUICKSTART.md`**: Plain-language guide for non-technical users — explains concepts without jargon, step-by-step Docker setup, common config patterns, command reference
+- **`BENCHMARK.md`**: Updated with full v0.2.0 test results table; v0.1.0 results preserved
+
+---
+
 ## 2026-04-11 (docker fixes)
 - Fixed Dockerfile: bumped builder image from `golang:1.22-alpine` to `golang:1.25-alpine` to match `go.mod` requirement — `go mod download` was failing with "requires go >= 1.25.0"
 - Fixed UDP health checker in `internal/health/pulsescan.go`: `ping()` was falling through to `pingHTTP` for UDP backends; added `pingUDP()` method that dials a connected UDP socket, sends `"ping"`, and waits for any reply within 2s; added `"udp"` case to `ping()` switch; echo-udp backend now passes health checks cleanly with no "is dead" errors
