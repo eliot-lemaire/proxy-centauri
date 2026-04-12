@@ -1,5 +1,11 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Docker — ORACLE_API_KEY env var fix)
+
+- **`docker-compose.yml`**: Added `environment: ORACLE_API_KEY=${ORACLE_API_KEY:-}` to the centauri service. Without this, the `${ORACLE_API_KEY}` placeholder in `centauri.example.yml` never resolved inside the container. Users now set the var in their shell before `docker compose up` and it flows through automatically.
+
+---
+
 ## 2026-04-12 — Milestone 3 Complete: The Oracle v0.3.0 ("Quantum Link Established")
 
 **All 8 steps shipped. 64 tests pass. Tagged v0.3.0.**
