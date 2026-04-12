@@ -15,7 +15,7 @@
      ╚═════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝
 
            ✦  Your traffic, your rules, your universe  ✦
-              v0.2.0 — Milestone 2: Engaging Engines
+              v0.3.0 — Milestone 3: Quantum Link Established
 ```
 
 # Proxy Centauri
@@ -496,6 +496,7 @@ echo "hello" | nc -u localhost 5353
 - [x] Metrics aggregator — converts raw Prometheus counters into rate/error/latency snapshots with delta tracking
 - [x] The Oracle core engine — Claude-powered threat detection and scaling advisor with threshold-triggered and interval-based analysis
 - [x] Oracle signals HTTP endpoint — GET active alerts as JSON, POST to resolve by ID
+- [x] Oracle wired into main — starts at boot, threshold checks every 30 s, signals at `/oracle/signals`
 - [ ] `centauri init` CLI wizard — interactive config generator
 
 **On the Horizon**
@@ -557,7 +558,7 @@ proxy-centauri/
 
 ## Contributing
 
-Contributions are welcome. Please open an issue before submitting a pull request for anything beyond typo fixes. The project is early-stage (v0.2.0) — check the roadmap for planned work before starting something major.
+Contributions are welcome. Please open an issue before submitting a pull request for anything beyond typo fixes. The project is early-stage (v0.3.0) — check the roadmap for planned work before starting something major.
 
 ```bash
 git clone https://github.com/eliot-lemaire/proxy-centauri.git

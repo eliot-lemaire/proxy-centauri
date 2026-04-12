@@ -14,6 +14,7 @@ import (
 	"github.com/eliot-lemaire/proxy-centauri/internal/health"
 	stellarlog "github.com/eliot-lemaire/proxy-centauri/internal/logger"
 	"github.com/eliot-lemaire/proxy-centauri/internal/metrics"
+	"github.com/eliot-lemaire/proxy-centauri/internal/oracle"
 	"github.com/eliot-lemaire/proxy-centauri/internal/proxy"
 	"github.com/eliot-lemaire/proxy-centauri/internal/ratelimit"
 	stellar "github.com/eliot-lemaire/proxy-centauri/internal/tls"
@@ -37,7 +38,7 @@ const logo = `
      ╚═════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝╚═╝
 
            ✦  Your traffic, your rules, your universe  ✦
-              v0.2.0 — Milestone 2: Engaging Engines
+              v0.3.0 — Milestone 3: Quantum Link Established
 `
 
 func main() {
@@ -61,12 +62,6 @@ func main() {
 	var store *metrics.Store
 	if cfg.Metrics.Enabled {
 		metrics.Init()
-		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Metrics.Port), metrics.Handler()); err != nil {
-				log.Printf("  [ Metrics         ] server error: %v", err)
-			}
-		}()
-		fmt.Printf("  [ Metrics         ] Prometheus endpoint on :%d/metrics\n", cfg.Metrics.Port)
 
 		store, err = metrics.OpenStore("data/metrics.db")
 		if err != nil {
@@ -78,6 +73,27 @@ func main() {
 		defer store.Close()
 		fmt.Println("  [ Store           ] SQLite metrics store at data/metrics.db")
 
+		ora := oracle.New(cfg.Oracle, store, gateNames)
+		ora.Start()
+		if ora != nil {
+			fmt.Println("  [ The Oracle      ] AI engine online")
+		}
+
+		fmt.Printf("  [ Metrics         ] Prometheus endpoint on :%d/metrics\n", cfg.Metrics.Port)
+		httpMux := http.NewServeMux()
+		httpMux.Handle("/metrics", metrics.Handler())
+		if ora != nil {
+			sh := oracle.SignalsHandler(store)
+			httpMux.Handle("/oracle/signals", sh)
+			httpMux.Handle("/oracle/signals/", sh)
+			fmt.Printf("  [ The Oracle      ] signals at :%d/oracle/signals\n", cfg.Metrics.Port)
+		}
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", cfg.Metrics.Port), httpMux); err != nil {
+				log.Printf("  [ Metrics         ] server error: %v", err)
+			}
+		}()
+
 		// Flush a snapshot per gate every 30 seconds.
 		go func() {
 			ticker := time.NewTicker(30 * time.Second)
@@ -88,6 +104,8 @@ func main() {
 						log.Printf("  [ Store           ] flush error: %v", err)
 					}
 				}
+				// Let The Oracle check for threshold breaches after each flush.
+				ora.Check(oracle.BuildSnapshot(gateNames, nil, 30))
 			}
 		}()
 	}

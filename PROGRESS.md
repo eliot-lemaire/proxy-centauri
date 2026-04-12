@@ -1,5 +1,20 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 6 — Wire Oracle into main.go)
+
+**Wired The Oracle into the running proxy — v0.3.0 Quantum Link Established**
+
+- **`cmd/centauri/main.go`**: Five changes:
+  1. Added `internal/oracle` import.
+  2. Version string bumped to `v0.3.0 — Milestone 3: Quantum Link Established`.
+  3. Oracle created and started after `store.Init()` — `ora.Start()` launches the background ticker; nil-safe so no guard needed when oracle is disabled.
+  4. Replaced the standalone metrics `http.ListenAndServe` call with a shared `http.ServeMux` that mounts `/metrics` (Prometheus) and, when Oracle is enabled, `/oracle/signals` and `/oracle/signals/` (Threat Signals API).
+  5. Flush goroutine now calls `ora.Check(oracle.BuildSnapshot(gateNames, nil, 30))` after every 30 s flush — Oracle performs threshold breach checks immediately after fresh counters are available.
+- **`README.md`**: Version string updated to v0.3.0, Step 6 checkbox ticked.
+- All 59 tests pass, build clean.
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 5 — Signals HTTP endpoint)
 
 **Added HTTP endpoint for reading and resolving Oracle Threat Signals**
