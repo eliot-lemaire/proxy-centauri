@@ -489,7 +489,7 @@ echo "hello" | nc -u localhost 5353
 - [x] SQLite metrics persistence (historical data for dashboard)
 - [x] UDP tunneling — L4 datagram forwarding with sticky sessions
 
-**v0.3.0 — Quantum Link Established** *(in progress)*
+**v0.3.0 — Quantum Link Established** ✓ *(released)*
 
 - [x] Config schema extended — `oracle:` block with env-var API key expansion
 - [x] SQLite `threat_signals` table — persistent Oracle alert storage with SaveSignal, ListSignals, ResolveSignal

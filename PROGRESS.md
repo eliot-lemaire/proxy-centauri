@@ -1,5 +1,37 @@
 # Centauri — Progress Log
 
+## 2026-04-12 — Milestone 3 Complete: The Oracle v0.3.0 ("Quantum Link Established")
+
+**All 8 steps shipped. 64 tests pass. Tagged v0.3.0.**
+
+### What was built
+
+| Step | Deliverable | Files |
+|------|-------------|-------|
+| 1 | `oracle:` config block with env-var API key expansion | `internal/config/config.go` |
+| 2 | `threat_signals` SQLite table — Save, List, Resolve | `internal/metrics/store.go` |
+| 3 | Metrics aggregator — rate/error/latency snapshots with delta tracking | `internal/oracle/aggregator.go` |
+| 4 | Oracle core engine — Claude API integration, threshold triggers, nil-safe | `internal/oracle/oracle.go` |
+| 5 | Signals HTTP endpoint — GET active alerts, POST resolve | `internal/oracle/signals.go` |
+| 6 | Wired into main.go — shared mux, flush integration, v0.3.0 logo | `cmd/centauri/main.go` |
+| 7 | `centauri init` CLI wizard — guided prompts, writes valid YAML | `cmd/centauri/wizard.go` |
+| 8 | `centauri.example.yml` — Oracle block with all fields and comments | `centauri.example.yml` |
+| 9 | `docs/MILESTONE3.md`, PROGRESS.md, tag v0.3.0, push | `docs/MILESTONE3.md` |
+
+### Key technical decisions
+- `anthropic.Client` is a value type (not pointer) — SDK v1.35.0 requirement
+- `buildSnapshot` separated from `BuildSnapshot` for pure-math testability (no Prometheus registry in tests)
+- `wizard(r io.Reader, outPath string)` inner function enables scripted-stdin tests with `t.TempDir()` output
+- Oracle nil-safe pattern: `New()` returns nil when disabled; all public methods guard `if o == nil { return }`
+- Shared `http.ServeMux` mounts `/metrics` + `/oracle/signals` on the same port — no extra listener
+
+### Final stats
+- **64 tests** across 9 packages — all pass, race detector clean
+- **1 new dependency:** `github.com/anthropics/anthropic-sdk-go v1.35.0`
+- **New files:** `internal/oracle/aggregator.go`, `internal/oracle/oracle.go`, `internal/oracle/signals.go`, `cmd/centauri/wizard.go`, `docs/MILESTONE3.md`
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 8 — Update centauri.example.yml)
 
 **Added Oracle config block to the example config file**
