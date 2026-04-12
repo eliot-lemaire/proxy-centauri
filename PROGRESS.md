@@ -1,5 +1,16 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 3 — Metrics aggregator)
+
+**Built the metrics aggregator — converts raw counters into rates and deltas for The Oracle**
+
+- **`internal/oracle/aggregator.go`** (new package): `GateSnapshot` struct holds per-gate req/s, error rate (0.0–1.0), P95 latency, and delta fields vs the previous snapshot. `BuildSnapshot()` calls `metrics.Snapshots()` and delegates to `buildSnapshot()`. `buildSnapshot()` is the pure-math core — takes raw `[]MetricsSnapshot` + previous `[]GateSnapshot` + interval seconds, returns computed snapshots. Handles counter resets (floors negative deltas to 0), division by zero (interval guard), and missing previous data (first-call nil).
+- **`internal/oracle/aggregator_test.go`**: Four tests — `TestBuildSnapshot_NoPrev` (first call, all deltas zero), `TestBuildSnapshot_WithPrev` (two rounds, verifies req/s, error rate, and all three deltas), `TestBuildSnapshot_MultiGate` (two independent gates), `TestBuildSnapshot_CounterReset` (negative delta floored to 0). Tests call `buildSnapshot` directly — no Prometheus registry involved.
+- **`README.md`**: Step 3 checkbox ticked in v0.3.0 roadmap.
+- All 43 tests pass, race detector clean.
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 2 — threat_signals SQLite table)
 
 **Added threat_signals table with full read/write/resolve API**
