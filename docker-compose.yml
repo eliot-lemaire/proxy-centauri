@@ -2,6 +2,8 @@ services:
 
   centauri:
     build: .
+    environment:
+      - ORACLE_API_KEY=${ORACLE_API_KEY:-}  # set in shell before docker compose up
     ports:
       - "8000:8000"   # HTTP Jump Gate
       - "9000:9000"   # TCP Jump Gate
