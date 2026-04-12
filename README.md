@@ -240,6 +240,14 @@ metrics:
 | `jump_gates[].tls.key_file` | string | conditional | Required when `tls.mode` is `"manual"` |
 | `metrics.enabled` | bool | no | Expose Prometheus `/metrics` endpoint (default `false`) |
 | `metrics.port` | int | no | Port for the metrics server (default `9090`) |
+| `oracle.enabled` | bool | no | Activate The Oracle AI engine (default `false`) |
+| `oracle.api_key` | string | conditional | Anthropic API key; supports `"${ORACLE_API_KEY}"` env-var syntax |
+| `oracle.model` | string | no | Claude model to use (default `"claude-haiku-4-5-20251001"`) |
+| `oracle.interval_seconds` | int | no | How often The Oracle analyzes traffic in seconds (default `300`) |
+| `oracle.threat_detection` | bool | no | Detect traffic anomalies and threats (default `false`) |
+| `oracle.scaling_advisor` | bool | no | Detect when you need to scale up or down (default `false`) |
+| `oracle.error_rate_threshold` | float | no | Trigger an immediate Oracle check if error rate exceeds this value, e.g. `0.05` = 5% |
+| `oracle.p95_latency_threshold` | float | no | Trigger an immediate Oracle check if P95 latency exceeds this value in ms, e.g. `500` |
 
 </details>
 
@@ -471,7 +479,7 @@ echo "hello" | nc -u localhost 5353
 - [x] Multi-stage Docker build
 - [x] Graceful shutdown
 
-**v0.2.0 — Engaging Engines** *(in progress)*
+**v0.2.0 — Engaging Engines** ✓ *(released)*
 
 - [x] Config schema extended — TLS, FluxShield, balancer algorithm, metrics fields
 - [x] Orbital Router — least-connections + weighted round-robin algorithms
@@ -481,12 +489,20 @@ echo "hello" | nc -u localhost 5353
 - [x] SQLite metrics persistence (historical data for dashboard)
 - [x] UDP tunneling — L4 datagram forwarding with sticky sessions
 
+**v0.3.0 — Quantum Link Established** *(in progress)*
+
+- [x] Config schema extended — `oracle:` block with env-var API key expansion
+- [ ] SQLite `threat_signals` table — persistent Oracle alert storage
+- [ ] Metrics aggregator — traffic snapshot formatting for Claude API
+- [ ] The Oracle core engine — Claude-powered threat detection and scaling advisor
+- [ ] Oracle signals HTTP endpoint — read and dismiss AI alerts
+- [ ] `centauri init` CLI wizard — interactive config generator
+
 **On the Horizon**
 
 | Feature | Codename | Notes |
 |---|---|---|
 | Web dashboard | Mission Control | Visual gate management, live traffic metrics |
-| AI routing engine | The Oracle | Claude-driven routing decisions and anomaly detection |
 | WebSocket support | — | HTTP upgrade path through Jump Gates |
 
 ---

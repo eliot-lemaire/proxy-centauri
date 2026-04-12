@@ -182,6 +182,91 @@ jump_gates:
 	}
 }
 
+func TestLoad_OracleConfig_Enabled(t *testing.T) {
+	t.Setenv("TEST_ORACLE_KEY", "sk-test-123")
+
+	path := writeTemp(t, `
+oracle:
+  enabled: true
+  api_key: "${TEST_ORACLE_KEY}"
+  model: "claude-haiku-4-5-20251001"
+  interval_seconds: 300
+  threat_detection: true
+  scaling_advisor: true
+  error_rate_threshold: 0.05
+  p95_latency_threshold: 500
+jump_gates: []
+`)
+	defer os.Remove(path)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	o := cfg.Oracle
+	if !o.Enabled {
+		t.Error("Oracle.Enabled = false, want true")
+	}
+	if o.APIKey != "sk-test-123" {
+		t.Errorf("Oracle.APIKey = %q, want %q", o.APIKey, "sk-test-123")
+	}
+	if o.Model != "claude-haiku-4-5-20251001" {
+		t.Errorf("Oracle.Model = %q, want %q", o.Model, "claude-haiku-4-5-20251001")
+	}
+	if o.IntervalSeconds != 300 {
+		t.Errorf("Oracle.IntervalSeconds = %v, want 300", o.IntervalSeconds)
+	}
+	if !o.ThreatDetection {
+		t.Error("Oracle.ThreatDetection = false, want true")
+	}
+	if !o.ScalingAdvisor {
+		t.Error("Oracle.ScalingAdvisor = false, want true")
+	}
+	if o.ErrorRateThreshold != 0.05 {
+		t.Errorf("Oracle.ErrorRateThreshold = %v, want 0.05", o.ErrorRateThreshold)
+	}
+	if o.P95LatencyThreshold != 500 {
+		t.Errorf("Oracle.P95LatencyThreshold = %v, want 500", o.P95LatencyThreshold)
+	}
+}
+
+func TestLoad_OracleConfig_Defaults(t *testing.T) {
+	// No oracle: block — existing configs must still parse fine with zero values.
+	path := writeTemp(t, `
+jump_gates:
+  - name: "web-app"
+    listen: ":8000"
+    protocol: http
+    star_systems:
+      - address: "localhost:3000"
+`)
+	defer os.Remove(path)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error: %v", err)
+	}
+	o := cfg.Oracle
+	if o.Enabled {
+		t.Error("Oracle.Enabled = true, want false")
+	}
+	if o.APIKey != "" {
+		t.Errorf("Oracle.APIKey = %q, want empty string", o.APIKey)
+	}
+	if o.Model != "" {
+		t.Errorf("Oracle.Model = %q, want empty string", o.Model)
+	}
+	if o.IntervalSeconds != 0 {
+		t.Errorf("Oracle.IntervalSeconds = %v, want 0", o.IntervalSeconds)
+	}
+	if o.ErrorRateThreshold != 0 {
+		t.Errorf("Oracle.ErrorRateThreshold = %v, want 0", o.ErrorRateThreshold)
+	}
+	if o.P95LatencyThreshold != 0 {
+		t.Errorf("Oracle.P95LatencyThreshold = %v, want 0", o.P95LatencyThreshold)
+	}
+}
+
 func TestLoad_StarSystem_Weight(t *testing.T) {
 	path := writeTemp(t, `
 jump_gates:

@@ -11,6 +11,7 @@ type Config struct {
 	MissionControl MissionControlConfig `yaml:"mission_control"`
 	JumpGates      []JumpGate           `yaml:"jump_gates"`
 	Metrics        MetricsConfig        `yaml:"metrics"`
+	Oracle         OracleConfig         `yaml:"oracle"`
 }
 
 // MissionControlConfig holds settings for the web dashboard.
@@ -56,6 +57,18 @@ type MetricsConfig struct {
 	Port    int  `yaml:"port"` // default: 9090
 }
 
+// OracleConfig controls The Oracle AI engine.
+type OracleConfig struct {
+	Enabled             bool    `yaml:"enabled"`
+	APIKey              string  `yaml:"api_key"`               // supports "${ORACLE_API_KEY}"
+	Model               string  `yaml:"model"`                 // default: "claude-haiku-4-5-20251001"
+	IntervalSeconds     int     `yaml:"interval_seconds"`      // default: 300 (5 min)
+	ThreatDetection     bool    `yaml:"threat_detection"`
+	ScalingAdvisor      bool    `yaml:"scaling_advisor"`
+	ErrorRateThreshold  float64 `yaml:"error_rate_threshold"`  // default: 0.05 (5%)
+	P95LatencyThreshold float64 `yaml:"p95_latency_threshold"` // default: 500ms
+}
+
 // Load reads a centauri.yml file from disk and returns a parsed Config.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
@@ -67,6 +80,8 @@ func Load(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
+
+	cfg.Oracle.APIKey = os.ExpandEnv(cfg.Oracle.APIKey)
 
 	return &cfg, nil
 }
