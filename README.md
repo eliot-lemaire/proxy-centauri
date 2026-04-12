@@ -497,7 +497,7 @@ echo "hello" | nc -u localhost 5353
 - [x] The Oracle core engine — Claude-powered threat detection and scaling advisor with threshold-triggered and interval-based analysis
 - [x] Oracle signals HTTP endpoint — GET active alerts as JSON, POST to resolve by ID
 - [x] Oracle wired into main — starts at boot, threshold checks every 30 s, signals at `/oracle/signals`
-- [ ] `centauri init` CLI wizard — interactive config generator
+- [x] `centauri init` CLI wizard — interactive config generator, writes `centauri.yml` via guided prompts
 
 **On the Horizon**
 

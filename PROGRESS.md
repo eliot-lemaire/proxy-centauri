@@ -1,5 +1,17 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 7 — `centauri init` CLI Wizard)
+
+**Built interactive config generator — run `centauri init` to set up a working `centauri.yml` with zero doc reading**
+
+- **`cmd/centauri/wizard.go`** (new): Two-layer design — `runWizard()` is the `os.Args` entry point; `wizard(r io.Reader, outPath string) error` is the testable core that accepts scripted input. `prompt(reader, msg, defaultVal)` reads one line and returns the default on empty input. Wizard guides the user through: gate name, listen address, protocol, backends (with loop for multiple), load balancing, rate limiting, TLS, and Oracle AI. Produces a fully marshaled `config.Config` via `gopkg.in/yaml.v3` — no hand-crafted YAML strings.
+- **`cmd/centauri/main.go`**: Added `init` subcommand dispatch at the very top of `main()` — `os.Args[1] == "init"` calls `runWizard()` and exits; normal startup path is unchanged.
+- **`cmd/centauri/wizard_test.go`** (new): 5 tests — `TestPrompt_Default`, `TestPrompt_Value`, `TestRunWizard_GeneratesValidYAML` (minimal all-defaults run, verifies parsed YAML fields), `TestRunWizard_WithOracle` (Oracle enabled path, checks api_key/interval/model/flags), `TestRunWizard_MultipleBackends` (two backends + least_connections). All write to `t.TempDir()` — no filesystem side effects.
+- **`README.md`**: Step 7 checkbox ticked.
+- All tests pass (race detector clean). Total: 64 tests.
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 6 — Wire Oracle into main.go)
 
 **Wired The Oracle into the running proxy — v0.3.0 Quantum Link Established**

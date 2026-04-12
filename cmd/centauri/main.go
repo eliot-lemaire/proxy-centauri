@@ -42,6 +42,13 @@ const logo = `
 `
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "init" {
+		if err := runWizard(); err != nil {
+			log.Fatalf("centauri init failed: %v", err)
+		}
+		return
+	}
+
 	fmt.Print(logo)
 	fmt.Println("  [ Mission Control ] Initializing...")
 
