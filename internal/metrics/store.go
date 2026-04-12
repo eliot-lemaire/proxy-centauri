@@ -14,6 +14,19 @@ type Store struct {
 	db *sql.DB
 }
 
+// ThreatSignal is a single Oracle alert stored in SQLite.
+type ThreatSignal struct {
+	ID        int64
+	Ts        int64
+	Gate      string
+	Kind      string // "threat" | "scaling"
+	Level     string // "low" | "medium" | "high" | "critical"
+	Summary   string
+	Reasoning string
+	Action    string
+	Resolved  bool
+}
+
 // OpenStore opens (or creates) the SQLite database at path, creating any
 // intermediate directories as needed.
 func OpenStore(path string) (*Store, error) {
@@ -53,7 +66,65 @@ func (s *Store) Init() error {
 	`); err != nil {
 		return err
 	}
+	if _, err := s.db.Exec(`
+		CREATE TABLE IF NOT EXISTS threat_signals (
+			id        INTEGER PRIMARY KEY AUTOINCREMENT,
+			ts        INTEGER NOT NULL,
+			gate      TEXT NOT NULL,
+			kind      TEXT NOT NULL,
+			level     TEXT NOT NULL,
+			summary   TEXT NOT NULL,
+			reasoning TEXT NOT NULL,
+			action    TEXT NOT NULL,
+			resolved  INTEGER NOT NULL DEFAULT 0
+		)
+	`); err != nil {
+		return err
+	}
 	return nil
+}
+
+// SaveSignal persists a new Threat Signal from The Oracle.
+func (s *Store) SaveSignal(sig ThreatSignal) error {
+	_, err := s.db.Exec(
+		`INSERT INTO threat_signals (ts, gate, kind, level, summary, reasoning, action)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		time.Now().Unix(), sig.Gate, sig.Kind, sig.Level, sig.Summary, sig.Reasoning, sig.Action,
+	)
+	return err
+}
+
+// ListSignals returns the N most recent unresolved signals, newest first.
+func (s *Store) ListSignals(limit int) ([]ThreatSignal, error) {
+	rows, err := s.db.Query(
+		`SELECT id, ts, gate, kind, level, summary, reasoning, action, resolved
+		 FROM threat_signals WHERE resolved = 0
+		 ORDER BY id DESC LIMIT ?`,
+		limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var signals []ThreatSignal
+	for rows.Next() {
+		var sig ThreatSignal
+		var resolved int
+		if err := rows.Scan(&sig.ID, &sig.Ts, &sig.Gate, &sig.Kind, &sig.Level,
+			&sig.Summary, &sig.Reasoning, &sig.Action, &resolved); err != nil {
+			return nil, err
+		}
+		sig.Resolved = resolved != 0
+		signals = append(signals, sig)
+	}
+	return signals, rows.Err()
+}
+
+// ResolveSignal marks a signal as resolved by ID.
+func (s *Store) ResolveSignal(id int64) error {
+	_, err := s.db.Exec(`UPDATE threat_signals SET resolved = 1 WHERE id = ?`, id)
+	return err
 }
 
 // Flush writes a per-gate metrics snapshot to request_stats.

@@ -1,5 +1,15 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 2 — threat_signals SQLite table)
+
+**Added threat_signals table with full read/write/resolve API**
+
+- **`internal/metrics/store.go`**: Added `ThreatSignal` struct (ID, Ts, Gate, Kind, Level, Summary, Reasoning, Action, Resolved). Added `threat_signals` table to `Init()`. Added `SaveSignal()` (INSERT), `ListSignals(limit)` (SELECT unresolved, newest first by id DESC), and `ResolveSignal(id)` (UPDATE resolved=1).
+- **`internal/metrics/store_test.go`**: Extended `TestOpenStore` to also check `threat_signals` table. Added `TestSaveSignal_RoundTrip` (all 8 fields survive DB round-trip), `TestListSignals_Limit` (limit respected, ordering verified), `TestResolveSignal` (resolved signal disappears from ListSignals). All 11 metrics tests pass, race detector clean.
+- **`README.md`**: Step 2 checkbox ticked in v0.3.0 roadmap.
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 1 — Oracle config schema)
 
 **Added `oracle:` config block with env-var API key expansion**

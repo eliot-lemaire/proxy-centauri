@@ -1,6 +1,7 @@
 package metrics
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -36,7 +37,7 @@ func TestOpenStore(t *testing.T) {
 		tables[name] = true
 	}
 
-	for _, want := range []string{"request_stats", "events"} {
+	for _, want := range []string{"request_stats", "events", "threat_signals"} {
 		if !tables[want] {
 			t.Errorf("table %q not found after Init", want)
 		}
@@ -106,6 +107,136 @@ func TestLogEvent_RoundTrip(t *testing.T) {
 	}
 	if detail != ":4000" {
 		t.Errorf("detail = %q, want %q", detail, ":4000")
+	}
+}
+
+func TestSaveSignal_RoundTrip(t *testing.T) {
+	s := newTestStore(t)
+
+	sig := ThreatSignal{
+		Gate:      "web-app",
+		Kind:      "threat",
+		Level:     "high",
+		Summary:   "Unusual spike detected",
+		Reasoning: "Error rate jumped from 1% to 25% over 60 seconds.",
+		Action:    "Set flux_shield to 20 req/s on gate web-app",
+	}
+	if err := s.SaveSignal(sig); err != nil {
+		t.Fatalf("SaveSignal: %v", err)
+	}
+
+	got, err := s.ListSignals(10)
+	if err != nil {
+		t.Fatalf("ListSignals: %v", err)
+	}
+	if len(got) != 1 {
+		t.Fatalf("ListSignals returned %d signals, want 1", len(got))
+	}
+
+	g := got[0]
+	if g.ID <= 0 {
+		t.Errorf("ID = %d, want > 0", g.ID)
+	}
+	if g.Ts <= 0 {
+		t.Errorf("Ts = %d, want > 0", g.Ts)
+	}
+	if g.Gate != sig.Gate {
+		t.Errorf("Gate = %q, want %q", g.Gate, sig.Gate)
+	}
+	if g.Kind != sig.Kind {
+		t.Errorf("Kind = %q, want %q", g.Kind, sig.Kind)
+	}
+	if g.Level != sig.Level {
+		t.Errorf("Level = %q, want %q", g.Level, sig.Level)
+	}
+	if g.Summary != sig.Summary {
+		t.Errorf("Summary = %q, want %q", g.Summary, sig.Summary)
+	}
+	if g.Reasoning != sig.Reasoning {
+		t.Errorf("Reasoning = %q, want %q", g.Reasoning, sig.Reasoning)
+	}
+	if g.Action != sig.Action {
+		t.Errorf("Action = %q, want %q", g.Action, sig.Action)
+	}
+	if g.Resolved {
+		t.Error("Resolved = true, want false")
+	}
+}
+
+func TestListSignals_Limit(t *testing.T) {
+	s := newTestStore(t)
+
+	for i := 1; i <= 5; i++ {
+		sig := ThreatSignal{
+			Gate:      fmt.Sprintf("gate-%d", i),
+			Kind:      "threat",
+			Level:     "low",
+			Summary:   "test",
+			Reasoning: "test reasoning",
+			Action:    "no action",
+		}
+		if err := s.SaveSignal(sig); err != nil {
+			t.Fatalf("SaveSignal(%d): %v", i, err)
+		}
+	}
+
+	// Limit respected.
+	got, err := s.ListSignals(3)
+	if err != nil {
+		t.Fatalf("ListSignals(3): %v", err)
+	}
+	if len(got) != 3 {
+		t.Errorf("ListSignals(3) returned %d signals, want 3", len(got))
+	}
+
+	// All 5 returned when limit is high enough.
+	all, err := s.ListSignals(10)
+	if err != nil {
+		t.Fatalf("ListSignals(10): %v", err)
+	}
+	if len(all) != 5 {
+		t.Errorf("ListSignals(10) returned %d signals, want 5", len(all))
+	}
+
+	// Newest insert (gate-5, highest id) comes first.
+	if all[0].Gate != "gate-5" {
+		t.Errorf("first signal Gate = %q, want %q", all[0].Gate, "gate-5")
+	}
+}
+
+func TestResolveSignal(t *testing.T) {
+	s := newTestStore(t)
+
+	sig := ThreatSignal{
+		Gate:      "web-app",
+		Kind:      "scaling",
+		Level:     "medium",
+		Summary:   "P95 latency elevated",
+		Reasoning: "P95 latency is 620ms, above the 500ms threshold.",
+		Action:    "Consider adding a second Star System to web-app",
+	}
+	if err := s.SaveSignal(sig); err != nil {
+		t.Fatalf("SaveSignal: %v", err)
+	}
+
+	before, err := s.ListSignals(10)
+	if err != nil {
+		t.Fatalf("ListSignals before resolve: %v", err)
+	}
+	if len(before) != 1 {
+		t.Fatalf("expected 1 signal before resolve, got %d", len(before))
+	}
+
+	if err := s.ResolveSignal(before[0].ID); err != nil {
+		t.Fatalf("ResolveSignal: %v", err)
+	}
+
+	after, err := s.ListSignals(10)
+	if err != nil {
+		t.Fatalf("ListSignals after resolve: %v", err)
+	}
+	if len(after) != 0 {
+		t.Errorf("expected 0 signals after resolve, got %d", len(after))
 	}
 }
 

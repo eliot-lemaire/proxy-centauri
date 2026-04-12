@@ -492,7 +492,7 @@ echo "hello" | nc -u localhost 5353
 **v0.3.0 — Quantum Link Established** *(in progress)*
 
 - [x] Config schema extended — `oracle:` block with env-var API key expansion
-- [ ] SQLite `threat_signals` table — persistent Oracle alert storage
+- [x] SQLite `threat_signals` table — persistent Oracle alert storage with SaveSignal, ListSignals, ResolveSignal
 - [ ] Metrics aggregator — traffic snapshot formatting for Claude API
 - [ ] The Oracle core engine — Claude-powered threat detection and scaling advisor
 - [ ] Oracle signals HTTP endpoint — read and dismiss AI alerts
