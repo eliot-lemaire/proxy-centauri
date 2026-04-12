@@ -1,5 +1,16 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 5 — Signals HTTP endpoint)
+
+**Added HTTP endpoint for reading and resolving Oracle Threat Signals**
+
+- **`internal/oracle/signals.go`** (new): `SignalsHandler(store)` returns an `http.Handler` backed by stdlib `http.ServeMux`. `GET /oracle/signals` returns up to 100 active signals as a JSON array (always `[]`, never `null`). `POST /oracle/signals/{id}/resolve` dismisses a signal by ID and returns 204. Invalid method → 405, bad ID → 400, wrong path → 404.
+- **`internal/oracle/signals_test.go`** (new): 6 tests — GetEmpty (empty array not null), GetWithSignals (2 signals decoded), Resolve (full round-trip: save → GET → POST resolve → GET empty), MethodNotAllowed, InvalidID, NotFound. All use `httptest.NewRecorder` — no real server.
+- **`README.md`**: Step 5 checkbox ticked in v0.3.0 roadmap.
+- All 59 tests pass, race detector clean.
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 4 — Oracle core engine)
 
 **Built The Oracle AI engine — Claude API integration with threat detection and scaling advisor**

@@ -495,7 +495,7 @@ echo "hello" | nc -u localhost 5353
 - [x] SQLite `threat_signals` table — persistent Oracle alert storage with SaveSignal, ListSignals, ResolveSignal
 - [x] Metrics aggregator — converts raw Prometheus counters into rate/error/latency snapshots with delta tracking
 - [x] The Oracle core engine — Claude-powered threat detection and scaling advisor with threshold-triggered and interval-based analysis
-- [ ] Oracle signals HTTP endpoint — read and dismiss AI alerts
+- [x] Oracle signals HTTP endpoint — GET active alerts as JSON, POST to resolve by ID
 - [ ] `centauri init` CLI wizard — interactive config generator
 
 **On the Horizon**
