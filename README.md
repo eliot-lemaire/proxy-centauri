@@ -498,6 +498,7 @@ echo "hello" | nc -u localhost 5353
 - [x] Oracle signals HTTP endpoint — GET active alerts as JSON, POST to resolve by ID
 - [x] Oracle wired into main — starts at boot, threshold checks every 30 s, signals at `/oracle/signals`
 - [x] `centauri init` CLI wizard — interactive config generator, writes `centauri.yml` via guided prompts
+- [x] `centauri.example.yml` updated — Oracle config block with all options and inline comments
 
 **On the Horizon**
 

@@ -42,3 +42,13 @@ jump_gates:
 metrics:
   enabled: true                       # set to false to disable the /metrics endpoint
   port: 9090                          # Prometheus scrape endpoint: http://localhost:9090/metrics
+
+oracle:
+  enabled: false                      # set to true to activate The Oracle AI engine
+  api_key: "${ORACLE_API_KEY}"        # paste your Claude API key or set the env var
+  model: "claude-haiku-4-5-20251001" # Claude model to use (haiku = best value for cost)
+  interval_seconds: 300               # analyze traffic every 5 minutes
+  threat_detection: true              # detect threats and anomalies
+  scaling_advisor: true               # detect when you need to scale up or down
+  error_rate_threshold: 0.05          # call Oracle immediately if error rate > 5%
+  p95_latency_threshold: 500          # call Oracle immediately if P95 latency > 500ms

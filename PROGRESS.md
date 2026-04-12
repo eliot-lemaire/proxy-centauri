@@ -1,5 +1,15 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 8 — Update centauri.example.yml)
+
+**Added Oracle config block to the example config file**
+
+- **`centauri.example.yml`**: Appended `oracle:` block with all eight fields — `enabled`, `api_key` (with `${ORACLE_API_KEY}` env-var placeholder), `model`, `interval_seconds`, `threat_detection`, `scaling_advisor`, `error_rate_threshold`, `p95_latency_threshold`. Each line has an inline comment explaining its purpose. Defaults to `enabled: false` so Oracle is opt-in.
+- **`README.md`**: Step 8 checkbox ticked.
+- No code changes — all 64 tests still pass.
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 7 — `centauri init` CLI Wizard)
 
 **Built interactive config generator — run `centauri init` to set up a working `centauri.yml` with zero doc reading**
