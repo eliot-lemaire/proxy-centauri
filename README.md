@@ -494,7 +494,7 @@ echo "hello" | nc -u localhost 5353
 - [x] Config schema extended — `oracle:` block with env-var API key expansion
 - [x] SQLite `threat_signals` table — persistent Oracle alert storage with SaveSignal, ListSignals, ResolveSignal
 - [x] Metrics aggregator — converts raw Prometheus counters into rate/error/latency snapshots with delta tracking
-- [ ] The Oracle core engine — Claude-powered threat detection and scaling advisor
+- [x] The Oracle core engine — Claude-powered threat detection and scaling advisor with threshold-triggered and interval-based analysis
 - [ ] Oracle signals HTTP endpoint — read and dismiss AI alerts
 - [ ] `centauri init` CLI wizard — interactive config generator
 

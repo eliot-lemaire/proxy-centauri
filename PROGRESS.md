@@ -1,5 +1,17 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 4 — Oracle core engine)
+
+**Built The Oracle AI engine — Claude API integration with threat detection and scaling advisor**
+
+- **`internal/oracle/oracle.go`** (new): `Oracle` struct with mutex-protected state (`lastSnaps`, `lastCall`). `New()` returns nil if disabled or no API key — nil-safe on all public methods. `Start()` launches background ticker at configured interval. `Check(snaps)` triggers immediate analysis on threshold breach. `analyze()` builds snapshot, calls Claude, saves signal if kind != "ok". `shouldCall()` returns true if interval elapsed OR any gate exceeds error-rate/P95 threshold. `callClaude()` sends structured prompt, parses JSON response. `buildPrompt()` formats a traffic table with req/s, error %, P95ms, and delta columns. `OracleResponse` struct for Claude's JSON output. `newWithClient()` internal constructor for test injection.
+- **`internal/oracle/oracle_test.go`** (new): 10 tests — NilSafe, New_DisabledReturnsNil, New_NoKeyReturnsNil, ShouldCall_Interval, ShouldCall_ErrorRateThreshold, ShouldCall_P95Threshold, BuildPrompt, CallClaude_ThreatResponse, CallClaude_OkResponse, ParseResponse. All use `httptest.Server` mock for Claude — no real API calls in tests.
+- **`go.mod` / `go.sum`**: Added `github.com/anthropics/anthropic-sdk-go v1.35.0`.
+- **`README.md`**: Step 4 checkbox ticked in v0.3.0 roadmap.
+- All 53 tests pass, race detector clean.
+
+---
+
 ## 2026-04-12 (Milestone 3, Step 3 — Metrics aggregator)
 
 **Built the metrics aggregator — converts raw counters into rates and deltas for The Oracle**
