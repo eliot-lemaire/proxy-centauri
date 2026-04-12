@@ -1,5 +1,15 @@
 # Centauri — Progress Log
 
+## 2026-04-12 (Milestone 3, Step 1 — Oracle config schema)
+
+**Added `oracle:` config block with env-var API key expansion**
+
+- **`internal/config/config.go`**: Added `OracleConfig` struct with 8 fields (`enabled`, `api_key`, `model`, `interval_seconds`, `threat_detection`, `scaling_advisor`, `error_rate_threshold`, `p95_latency_threshold`). Added `Oracle OracleConfig` field to root `Config` struct. Added `os.ExpandEnv()` call in `Load()` so `api_key: "${ORACLE_API_KEY}"` is resolved at startup — no secrets in YAML files needed.
+- **`internal/config/config_test.go`**: Added `TestLoad_OracleConfig_Enabled` (all 8 fields + env-var expansion via `t.Setenv`) and `TestLoad_OracleConfig_Defaults` (absent `oracle:` block gives zero values). All 9 config tests pass, race detector clean.
+- **`README.md`**: Added `oracle.*` field reference rows to the config table. Updated roadmap — v0.2.0 marked complete, v0.3.0 "Quantum Link Established" section added with step-by-step checklist.
+
+---
+
 ## 2026-04-11 (testing + bug fixes + docs)
 
 **Milestone 2 QA pass: full integration test suite, 4 bug fixes, quickstart guide**
